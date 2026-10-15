@@ -1,0 +1,626 @@
+{
+  "info": {
+    "name": "Zamzam — Switch Tahfiz & Halaqat",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Focused collection for the Tahfiz switcher and الحلقات (/sessions) page. Set baseUrl, username and password. Run Login, then Get Me to discover memberships and initialize tahfizId. Set targetTahfizId to an active membership, run Switch Tahfiz, then Verify Selected Tahfiz. Successful switch updates tahfizId automatically. All page requests use bearer auth and X-Tahfiz-ID. The web page loads /sessions/all and /auth/me, and filters month/upcoming/past locally. Separate past/upcoming API requests are also included. Session creation/deletion changes data; run those requests individually in a test workspace."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{bearerToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    },
+    {
+      "key": "username",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bearerToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "deviceId",
+      "value": "postman-halaqat-0001",
+      "type": "string"
+    },
+    {
+      "key": "tahfizId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "targetTahfizId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sessionDate",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sessionName",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "studentIds",
+      "value": "[]",
+      "type": "string"
+    },
+    {
+      "key": "sessionId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication & Switch Tahfiz",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Set username/password first. Saves access and refresh tokens.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\",\n  \"device_id\": \"{{deviceId}}\",\n  \"device_name\": \"Postman Halaqat\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('bearerToken', body.access_token);",
+                  "  if (body.refresh_token) pm.collectionVariables.set('refreshToken', body.refresh_token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Me — Memberships & Current Tahfiz",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            },
+            "description": "No tenant header: discovers the default workspace and memberships. Saves the returned tahfiz_id as tahfizId. Choose an active membership ID for targetTahfizId."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  if (body.tahfiz_id) pm.collectionVariables.set('tahfizId', String(body.tahfiz_id));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Switch Tahfiz",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/default-tahfiz",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "default-tahfiz"
+              ]
+            },
+            "description": "Persists the selected default Tahfiz, matching the web switcher. Requires an active membership. On success, updates tahfizId and clears sessionId to avoid reusing a session from another workspace.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tahfiz_id\": {{targetTahfizId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('tahfizId', String(body.tahfiz_id));",
+                  "  pm.collectionVariables.set('sessionId', '');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Selected Tahfiz / Page Settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tahfiz-ID",
+                "value": "{{tahfizId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Returns effective role and Tahfiz settings, including month_start_day, multiple_sessions_per_day_enabled and session_name_options."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  pm.test('Selected Tahfiz is active', function () {",
+                  "    pm.expect(String(pm.response.json().tahfiz_id)).to.eql(String(pm.variables.get('tahfizId')));",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Tokens",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
+            },
+            "description": "Rotates and saves both tokens. Use the same deviceId as Login.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refreshToken}}\",\n  \"device_id\": \"{{deviceId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('bearerToken', body.access_token);",
+                  "  if (body.refresh_token) pm.collectionVariables.set('refreshToken', body.refresh_token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Halaqat Page — Lists & Create Modal Lookups",
+      "item": [
+        {
+          "name": "All Halaqat — Main Page",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tahfiz-ID",
+                "value": "{{tahfizId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sessions/all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sessions",
+                "all"
+              ]
+            },
+            "description": "Main page data source. Returns date, name, is_confirmed, status, version, student_count and tenant identity. Month filtering uses month_start_day from Get Me; upcoming means is_confirmed=false, past means true."
+          },
+          "response": []
+        },
+        {
+          "name": "Upcoming Halaqat",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tahfiz-ID",
+                "value": "{{tahfizId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sessions/upcoming",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sessions",
+                "upcoming"
+              ]
+            },
+            "description": "Unconfirmed sessions ordered by date and daily_sequence ascending."
+          },
+          "response": []
+        },
+        {
+          "name": "Past Halaqat",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tahfiz-ID",
+                "value": "{{tahfizId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sessions/past",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sessions",
+                "past"
+              ]
+            },
+            "description": "Confirmed sessions ordered by date and daily_sequence descending."
+          },
+          "response": []
+        },
+        {
+          "name": "Students — Create Modal",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tahfiz-ID",
+                "value": "{{tahfizId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/students",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students"
+              ]
+            },
+            "description": "Used when multiple sessions per day is enabled. The UI offers students with status مقيد or ضيف. Set studentIds to a non-empty JSON array of selected numeric IDs."
+          },
+          "response": []
+        },
+        {
+          "name": "Student Categories — Create Modal",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tahfiz-ID",
+                "value": "{{tahfizId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/student-categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "student-categories"
+              ]
+            },
+            "description": "Categories used to select groups of students when creating a session with explicit membership."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Halaqat Actions — Run Individually",
+      "item": [
+        {
+          "name": "Create Halaqa — Single Session Per Day",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tahfiz-ID",
+                "value": "{{tahfizId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sessions/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sessions",
+                ""
+              ]
+            },
+            "description": "Admin action. Set sessionDate (YYYY-MM-DD). Use when multiple_sessions_per_day_enabled=false; an existing session on the same date returns 409. Saves the new sessionId.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"session_date\": \"{{sessionDate}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  pm.collectionVariables.set('sessionId', String(pm.response.json().id));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Halaqa — Multiple Sessions Per Day",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tahfiz-ID",
+                "value": "{{tahfizId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sessions/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sessions",
+                ""
+              ]
+            },
+            "description": "Admin action. Requires multiple_sessions_per_day_enabled=true. Set sessionDate, optional sessionName, and studentIds to a non-empty JSON array such as [12, 34] using IDs from this Tahfiz. Saves the new sessionId.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"session_date\": \"{{sessionDate}}\",\n  \"name\": \"{{sessionName}}\",\n  \"student_ids\": {{studentIds}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  pm.collectionVariables.set('sessionId', String(pm.response.json().id));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Halaqa",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tahfiz-ID",
+                "value": "{{tahfizId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sessions/{{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sessions",
+                "{{sessionId}}"
+              ]
+            },
+            "description": "Admin action. Permanently deletes the selected session and associated records. Set sessionId deliberately. Confirmed sessions return 409 and must be reopened before deletion. Successful deletion clears sessionId."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  pm.collectionVariables.set('sessionId', '');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
