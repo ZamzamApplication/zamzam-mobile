@@ -28,8 +28,13 @@ import type {
   WorkspaceData,
 } from './state';
 import { readWorkspace, writeWorkspace } from './database';
+import { applyQuranReceipt, quranBatch, quranKey, queueQuran } from './quran';
+import type { QuranRecord } from './quran';
+import type { QuranProgressInput } from '../domain-types';
+import { validateProgress } from '../progress';
 
 interface Bootstrap {
+  quran_progress?: QuranRecord[];
   schema_version: number;
   cursor: number;
   tahfiz: Settings;
@@ -90,6 +95,10 @@ export class OfflineEngine {
       engine.view.data = {
         ...emptyWorkspace(user),
         queue: cached.queue.map(p => ({ ...p, issue: 'scope_changed' })),
+        quranQueue: cached.quranQueue?.map(p => ({
+          ...p,
+          issue: 'scope_changed',
+        })),
       };
     } else engine.view.data.user = user;
     return engine;
@@ -145,6 +154,62 @@ export class OfflineEngine {
       void this.autoSync();
     }, 800);
   }
+  async editQuran(sessionId: number, values: QuranProgressInput) {
+    validateProgress(values);
+    await this.mutate(data => {
+      const roster = data.rosters[sessionId];
+      if (
+        !data.settings.progress_tracking_enabled ||
+        !roster?.quran_progress_enabled ||
+        roster.is_confirmed ||
+        data.user.role === 'auditor'
+      )
+        throw new Error('متابعة القرآن غير متاحة أو الحلقة مؤكدة.');
+      if (
+        !roster.sheikh_groups.some(g =>
+          g.students.some(
+            s =>
+              s.id === values.student_id && s.quran_progress_enabled === true,
+          ),
+        )
+      )
+        throw new Error('الطالب ليس ضمن طلاب الحلقة.');
+      if (!data.quranEntries)
+        throw new Error(
+          'حمّل بيانات متابعة القرآن أولاً قبل التسجيل دون اتصال.',
+        );
+      data.quranQueue = queueQuran(
+        data.quranQueue || [],
+        data.quranEntries,
+        { ...values, session_id: sessionId },
+        this.client.deviceId,
+      );
+    });
+    clearTimeout(this.scheduled);
+    this.scheduled = setTimeout(() => {
+      void this.autoSync();
+    }, 800);
+  }
+  async resolveQuran(key: string, keepLocal: boolean) {
+    await this.mutate(data => {
+      const related = (data.quranQueue || []).filter(q => q.entity_key === key);
+      const issue = related.find(q => q.issue);
+      const latest = related.at(-1);
+      if (!issue || !latest) return;
+      data.quranEntries ||= {};
+      if (issue.server) data.quranEntries[key] = issue.server;
+      else delete data.quranEntries[key];
+      data.quranQueue = data.quranQueue!.filter(q => q.entity_key !== key);
+      if (keepLocal)
+        data.quranQueue = queueQuran(
+          data.quranQueue,
+          data.quranEntries,
+          latest.values,
+          this.client.deviceId,
+        );
+    });
+    void this.sync();
+  }
   async editStudent(
     sessionId: number,
     studentId: number,
@@ -184,6 +249,48 @@ export class OfflineEngine {
   async draft(section: string, values: Partial<Settings>) {
     await this.mutate(data => {
       data.settingsDrafts[section] = values;
+    });
+  }
+  async resource<T>(path: string): Promise<T> {
+    if (!this.view.online) {
+      const cached = this.view.data.resources?.[path];
+      if (!cached)
+        throw new Error(
+          'هذه البيانات لم تُحمّل على الجهاز بعد. اتصل بالإنترنت لتحميلها.',
+        );
+      return cached.value as T;
+    }
+    let value: T;
+    try {
+      value = await this.request<T>(path);
+    } catch (error) {
+      if (error instanceof ApiError && [403, 404].includes(error.status))
+        await this.mutate(data => {
+          if (data.resources) delete data.resources[path];
+        });
+      throw error;
+    }
+    await this.mutate(data => {
+      data.resources ||= {};
+      data.resources[path] = { value, fetchedAt: new Date().toISOString() };
+    });
+    return value;
+  }
+  async formDraft(key: string, value: unknown) {
+    await this.mutate(data => {
+      data.formDrafts ||= {};
+      if (value === undefined) delete data.formDrafts[key];
+      else data.formDrafts[key] = value;
+    });
+  }
+  async publish<T>(path: string, body?: unknown, method = 'POST'): Promise<T> {
+    if (!this.view.online)
+      throw new Error(
+        'المسودة محفوظة على الجهاز. نشر هذا التغيير يحتاج إلى اتصال بالإنترنت.',
+      );
+    return this.request<T>(path, {
+      method,
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
   }
   async invitations() {
@@ -239,7 +346,10 @@ export class OfflineEngine {
     if (!this.view.online)
       throw new Error('تأكيد الحلقة وإعادة فتحها يحتاجان إلى اتصال.');
     await this.sync();
-    if (this.view.data.queue.some(p => p.values.session_id === sessionId))
+    if (
+      this.view.data.queue.some(p => p.values.session_id === sessionId) ||
+      this.view.data.quranQueue?.some(p => p.values.session_id === sessionId)
+    )
       throw new Error('زامن التغييرات وعالج التعارضات قبل تأكيد الحلقة.');
     const current = await this.request<Roster>(
       `/sessions/${sessionId}/attendance`,
@@ -288,6 +398,10 @@ export class OfflineEngine {
         Object.assign(data, {
           ...emptyWorkspace(me),
           queue: data.queue.map(p => ({ ...p, issue: 'scope_changed' })),
+          quranQueue: data.quranQueue?.map(p => ({
+            ...p,
+            issue: 'scope_changed',
+          })),
         });
       });
     }
@@ -309,7 +423,26 @@ export class OfflineEngine {
           ]),
         );
         data.cursor = bootstrap.cursor;
+        data.quranEntries = Object.fromEntries(
+          (bootstrap.quran_progress || []).map(e => [
+            quranKey(e.session_id, e.student_id, e.category),
+            e,
+          ]),
+        );
         data.bootstrapped = true;
+      });
+    }
+    if (!this.view.data.quranEntries) {
+      const bootstrap = await this.request<Bootstrap>(
+        '/sync/v1/bootstrap?history_days=90',
+      );
+      await this.mutate(data => {
+        data.quranEntries = Object.fromEntries(
+          (bootstrap.quran_progress || []).map(e => [
+            quranKey(e.session_id, e.student_id, e.category),
+            e,
+          ]),
+        );
       });
     }
     for (const session of this.view.data.sessions) {
@@ -349,6 +482,47 @@ export class OfflineEngine {
           'استجابة المزامنة غير مكتملة. لم تُحذف التغييرات المحلية.',
         );
       await this.mutate(data => applyResults(data, response.results));
+    }
+    for (
+      let round = 0;
+      round < 20 && !this.closed && this.view.online;
+      round++
+    ) {
+      const batch = quranBatch(this.view.data.quranQueue || []);
+      if (!batch.length) break;
+      await this.mutate(data => {
+        batch.forEach(q => {
+          const pending = data.quranQueue?.find(
+            p => p.mutation_id === q.mutation_id,
+          );
+          if (pending) pending.attempted = true;
+        });
+      });
+      const response = await this.request<{
+        results: Parameters<typeof applyQuranReceipt>[2][];
+      }>('/sync/v1/mutations', {
+        method: 'POST',
+        body: JSON.stringify({
+          mutations: batch.map(
+            ({
+              attempted: _attempted,
+              issue: _issue,
+              server: _server,
+              ...mutation
+            }) => mutation,
+          ),
+        }),
+      });
+      if (!response.results.length)
+        throw new Error('استجابة المزامنة غير مكتملة. تغييرات القرآن محفوظة.');
+      await this.mutate(data => {
+        for (const receipt of response.results)
+          data.quranQueue = applyQuranReceipt(
+            data.quranQueue || [],
+            data.quranEntries!,
+            receipt,
+          );
+      });
     }
     const reload = new Set<number>();
     for (let page = 0; page < 100 && !this.closed; page++) {

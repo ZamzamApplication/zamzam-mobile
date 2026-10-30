@@ -153,7 +153,8 @@ export type IconName =
   | 'close'
   | 'plus'
   | 'wifi'
-  | 'home';
+  | 'home'
+  | 'more';
 export function Icon({
   name,
   color,
@@ -213,6 +214,13 @@ export function Icon({
       </>
     ),
     home: <Path d="M3 11.5 12 4l9 7.5M5.5 10v10h13V10M9.5 20v-6h5v6" />,
+    more: (
+      <>
+        <Circle cx="5" cy="12" r="1" />
+        <Circle cx="12" cy="12" r="1" />
+        <Circle cx="19" cy="12" r="1" />
+      </>
+    ),
   };
   return (
     <Svg

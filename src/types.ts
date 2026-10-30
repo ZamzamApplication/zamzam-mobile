@@ -82,6 +82,7 @@ export interface DashboardSummary {
   pending_sessions: number;
 }
 export interface Student {
+  quran_progress_enabled?: boolean;
   id: number;
   name: string;
   profile_pic?: string | null;

@@ -8,6 +8,8 @@ import type {
   User,
 } from '../types';
 import { uid } from '../types';
+import type { QuranPending, QuranRecord } from './quran';
+import { quranKey } from './quran';
 
 export interface ServerAttendance extends AttendanceUpdate {
   id: number;
@@ -29,6 +31,10 @@ export interface Pending extends Mutation {
   server?: ServerAttendance | null;
 }
 export interface WorkspaceData {
+  quranQueue?: QuranPending[];
+  quranEntries?: Record<string, QuranRecord>;
+  resources?: Record<string, { value: unknown; fetchedAt: string }>;
+  formDrafts?: Record<string, unknown>;
   dashboard?: {
     summary: DashboardSummary;
     sessions: Session[];
@@ -58,6 +64,11 @@ export const attendanceKey = (session: number, student: number) =>
   `session:${session}:student:${student}`;
 export function emptyWorkspace(user: User): WorkspaceData {
   return {
+    dashboard: undefined,
+    resources: {},
+    formDrafts: {},
+    quranQueue: [],
+    quranEntries: undefined,
     user,
     settings: user.tahfiz || { id: user.tahfiz_id!, name: 'التحفيظ' },
     sessions: [],
@@ -190,7 +201,19 @@ export function applyChanges(data: WorkspaceData, changes: Change[]) {
   const refresh = new Set<number>();
   for (const change of changes) {
     const p = change.payload;
-    if (change.entity_type === 'attendance') {
+    if (change.entity_type === 'quran_progress') {
+      data.quranEntries ||= {};
+      if (p) {
+        const entry = p as unknown as QuranRecord;
+        data.quranEntries[
+          quranKey(entry.session_id, entry.student_id, entry.category)
+        ] = entry;
+      } else {
+        for (const [key, entry] of Object.entries(data.quranEntries))
+          if (String(entry.id) === change.entity_key)
+            delete data.quranEntries[key];
+      }
+    } else if (change.entity_type === 'attendance') {
       if (p) {
         const a = p as unknown as ServerAttendance;
         data.attendance[attendanceKey(a.session_id, a.student_id)] = a;
@@ -207,6 +230,11 @@ export function applyChanges(data: WorkspaceData, changes: Change[]) {
       if (!p) {
         data.sessions = data.sessions.filter(s => s.id !== id);
         delete data.rosters[id];
+        data.quranQueue
+          ?.filter(q => q.values.session_id === id)
+          .forEach(q => {
+            q.issue = 'entity_not_found';
+          });
         data.queue
           .filter(q => q.values.session_id === id)
           .forEach(q => {

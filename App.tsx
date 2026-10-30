@@ -28,6 +28,9 @@ import {
 } from './src/screens/Attendance';
 import { SettingsScreen } from './src/screens/Settings';
 import { HomeScreen } from './src/screens/Home';
+import { formatQuranRange } from './src/quran';
+import { MoreScreen } from './src/screens/More';
+import type { MoreRoute } from './src/screens/More';
 import {
   Button,
   Card,
@@ -287,6 +290,8 @@ function SyncPanel({
   const [localError, setLocalError] = useState('');
   const issues = data.queue.filter(p => p.issue);
   const pending = data.queue.filter(p => !p.issue);
+  const quranIssues = (data.quranQueue || []).filter(p => p.issue);
+  const quranPending = (data.quranQueue || []).filter(p => !p.issue);
   const reasons: Record<string, string> = {
     revision_conflict: 'عُدّل السجل على جهاز آخر.',
     session_locked: 'أُكّدت الحلقة على جهاز آخر وأصبح الحضور مقفلاً.',
@@ -308,7 +313,8 @@ function SyncPanel({
         }
       />
       <Txt>
-        {pending.length} تغيير بانتظار المزامنة · {issues.length} يحتاج مراجعة
+        {pending.length + quranPending.length} تغيير بانتظار المزامنة ·{' '}
+        {issues.length + quranIssues.length} يحتاج مراجعة
       </Txt>
       <Txt muted style={{ fontSize: 12 }}>
         آخر مزامنة:{' '}
@@ -389,6 +395,38 @@ function SyncPanel({
           </Card>
         );
       })}
+      {quranIssues.map(q => (
+        <Card key={q.mutation_id}>
+          <Txt bold>تعارض في متابعة القرآن</Txt>
+          <Txt>تعديلك: {formatQuranRange(q.values)}</Txt>
+          <Txt>
+            الخادم: {q.server ? formatQuranRange(q.server) : 'لا يوجد سجل'}
+          </Txt>
+          <Txt muted>{reasons[q.issue!] || q.issue}</Txt>
+          <Button
+            secondary
+            title="استخدام نسخة الخادم"
+            onPress={() => {
+              void engine
+                .resolveQuran(q.entity_key, false)
+                .catch(e => setLocalError(errorMessage(e)));
+            }}
+          />
+          <Button
+            secondary
+            title="إعادة إرسال تعديلي"
+            disabled={!online}
+            onPress={() => {
+              void engine
+                .resolveQuran(q.entity_key, true)
+                .catch(e => setLocalError(errorMessage(e)));
+            }}
+          />
+        </Card>
+      ))}
+      {quranPending.slice(0, 12).map(q => (
+        <Txt key={q.mutation_id}>قرآن: {formatQuranRange(q.values)}</Txt>
+      ))}
       {pending.slice(0, 12).map(p => (
         <Txt key={p.mutation_id} muted style={{ fontSize: 12 }}>
           {data.rosters[p.values.session_id]?.sheikh_groups
@@ -417,9 +455,10 @@ function Workspace({
   const { data, online, syncing, error } = useEngine(engine);
   const t = useTheme();
   const [page, setPage] = useState<
-    'home' | 'sessions' | 'attendance' | 'settings'
+    'home' | 'sessions' | 'attendance' | 'settings' | 'more'
   >('home');
   const [sessionId, setSessionId] = useState<number | null>(null);
+  const [moreRoute, setMoreRoute] = useState<MoreRoute>(null);
   const [picker, setPicker] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
@@ -451,10 +490,18 @@ function Workspace({
         setSessionId(null);
         return true;
       }
+      if (moreRoute) {
+        setMoreRoute(null);
+        return true;
+      }
+      if (page !== 'home') {
+        setPage('home');
+        return true;
+      }
       return false;
     });
     return () => listener.remove();
-  }, [sessionId]);
+  }, [sessionId, page, moreRoute]);
   const chooseTenant = async (id: number) => {
     if (id === engine.tenant || switching) {
       setPicker(false);
@@ -497,7 +544,7 @@ function Workspace({
   const logout = () =>
     Alert.alert(
       'تسجيل الخروج',
-      data.queue.length
+      data.queue.length || data.quranQueue?.length
         ? 'توجد تغييرات غير متزامنة. ستبقى محفوظة بأمان لهذا الحساب حتى تسجل دخوله مرة أخرى.'
         : 'هل تريد تسجيل الخروج من هذا الجهاز؟',
       [
@@ -511,13 +558,15 @@ function Workspace({
         },
       ],
     );
-  const issues = data.queue.filter(p => p.issue).length;
+  const allPending = [...data.queue, ...(data.quranQueue || [])];
+  const issues = allPending.filter(p => p.issue).length;
   const open = (id: number) => setSessionId(id);
   const nav: { key: typeof page; label: string; icon: IconName }[] = [
     { key: 'home', label: 'الرئيسية', icon: 'home' },
     { key: 'sessions', label: 'الحلقات', icon: 'sessions' },
     { key: 'attendance', label: 'سجل الحضور', icon: 'attendance' },
     { key: 'settings', label: 'الإعدادات', icon: 'settings' },
+    { key: 'more', label: 'المزيد', icon: 'more' },
   ];
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, direction: 'ltr' }}>
@@ -640,8 +689,8 @@ function Workspace({
             ? 'دون اتصال · محفوظ على الجهاز'
             : issues
             ? `${issues} تعديل يحتاج مراجعة`
-            : data.queue.length
-            ? `${data.queue.length} تغيير بانتظار المزامنة`
+            : allPending.length
+            ? `${allPending.length} تغيير بانتظار المزامنة`
             : 'البيانات محفوظة على الجهاز'}
         </Txt>
         <Txt style={{ fontSize: 11, color: t.cyan }}>المزامنة</Txt>
@@ -665,6 +714,16 @@ function Workspace({
             engine={engine}
             id={sessionId}
             onBack={() => setSessionId(null)}
+            onProfile={id => {
+              setSessionId(null);
+              setMoreRoute({ page: 'profile', id });
+              setPage('more');
+            }}
+            onQuran={() => {
+              setMoreRoute({ page: 'quran', id: sessionId });
+              setSessionId(null);
+              setPage('more');
+            }}
           />
         ) : page === 'home' ? (
           <HomeScreen
@@ -674,9 +733,21 @@ function Workspace({
             onRecords={() => setPage('attendance')}
             onSettings={() => setPage('settings')}
             onSync={() => setSyncOpen(true)}
+            onMore={() => {
+              setPage('more');
+              setMoreRoute(null);
+            }}
           />
         ) : page === 'sessions' ? (
           <SessionsScreen engine={engine} onOpen={open} />
+        ) : page === 'more' ? (
+          <MoreScreen
+            engine={engine}
+            route={moreRoute}
+            navigate={setMoreRoute}
+            onHome={() => setPage('home')}
+            onSettings={() => setPage('settings')}
+          />
         ) : page === 'attendance' ? (
           <RecordsScreen engine={engine} onOpen={open} />
         ) : (
@@ -703,6 +774,7 @@ function Workspace({
             accessibilityState={{ selected: item.key === page }}
             onPress={() => {
               setSessionId(null);
+              setMoreRoute(null);
               setPage(item.key);
             }}
             style={{

@@ -9,6 +9,7 @@ jest.mock('react-native-keychain', () => ({
 import { OfflineEngine } from '../src/offline/engine';
 import { readWorkspace, writeWorkspace } from '../src/offline/database';
 import type { Gateway, Roster, User } from '../src/types';
+import { ApiError } from '../src/api';
 import type {
   Mutation,
   ServerAttendance,
@@ -205,4 +206,103 @@ test('a failed local commit does not claim a saved attendance edit', async () =>
   expect(engine.view.data.queue).toHaveLength(0);
   expect(stored.get('account:1:42')?.queue).toHaveLength(0);
   engine.dispose();
+});
+test('cached feature resources survive offline restart and are purged after revoked access', async () => {
+  const remote = server();
+  const engine = await OfflineEngine.open(remote.client, user);
+  const original = remote.client.request;
+  remote.client.request = async (path, options) =>
+    path === '/students'
+      ? ([{ id: 1, name: 'Student' }] as never)
+      : original(path, options);
+  await engine.resource('/students');
+  await engine.formDraft('student:new', { name: 'Local draft' });
+  engine.dispose();
+  const restarted = await OfflineEngine.open(remote.client, user);
+  restarted.setOnline(false);
+  expect(await restarted.resource('/students')).toEqual([
+    { id: 1, name: 'Student' },
+  ]);
+  expect(restarted.view.data.formDrafts?.['student:new']).toEqual({
+    name: 'Local draft',
+  });
+  await expect(
+    restarted.publish('/students', { name: 'Never sent' }),
+  ).rejects.toThrow();
+  restarted.view.online = true;
+  remote.client.request = async () => {
+    throw new ApiError('Forbidden', 403);
+  };
+  await expect(restarted.resource('/students')).rejects.toThrow('Forbidden');
+  expect(restarted.view.data.resources?.['/students']).toBeUndefined();
+  restarted.dispose();
+});
+test('a membership scope change removes cached profiles, summaries, and drafts', async () => {
+  const remote = server();
+  const engine = await OfflineEngine.open(remote.client, user);
+  await engine.sync();
+  await engine.formDraft('student:new', { name: 'Admin draft' });
+  engine.dispose();
+  const restricted = await OfflineEngine.open(remote.client, {
+    ...user,
+    role: 'sheikh',
+    sheikh_id: 5,
+  });
+  expect(restricted.view.data.formDrafts).toEqual({});
+  expect(restricted.view.data.resources).toEqual({});
+  expect(restricted.view.data.dashboard).toBeUndefined();
+  restricted.dispose();
+});
+test('Quran edits survive a lost response and retry their immutable receipt after restart', async () => {
+  const remote = server();
+  const original = remote.client.request;
+  remote.client.request = async (path, options) => {
+    const response = await original<Record<string, unknown>>(path, options);
+    if (path === '/auth/me')
+      return {
+        ...response,
+        tahfiz: { ...user.tahfiz, progress_tracking_enabled: true },
+      } as never;
+    if (path === '/tahfiz/settings')
+      return { ...response, progress_tracking_enabled: true } as never;
+    if (path === '/sessions/10/attendance')
+      return {
+        ...roster,
+        quran_progress_enabled: true,
+        sheikh_groups: roster.sheikh_groups.map(g => ({
+          ...g,
+          students: g.students.map(s => ({
+            ...s,
+            quran_progress_enabled: true,
+          })),
+        })),
+      } as never;
+    return response as never;
+  };
+  const first = await OfflineEngine.open(remote.client, user);
+  await first.sync();
+  first.setOnline(false);
+  await first.editQuran(10, {
+    student_id: 1,
+    category: 'new_memorization',
+    range_type: 'page',
+    from_page: 1,
+    to_page: 2,
+    quality_score: 5,
+    notes: 'offline Quran',
+  });
+  remote.loseNextResponse();
+  first.view.online = true;
+  await first.sync();
+  const id = first.view.data.quranQueue![0].mutation_id;
+  first.dispose();
+  const restarted = await OfflineEngine.open(remote.client, user);
+  expect(restarted.view.data.quranQueue![0].mutation_id).toBe(id);
+  await restarted.sync();
+  expect(restarted.view.data.quranQueue).toEqual([]);
+  expect(remote.applications()).toBe(1);
+  expect(Object.values(restarted.view.data.quranEntries || {})[0].notes).toBe(
+    'offline Quran',
+  );
+  restarted.dispose();
 });
