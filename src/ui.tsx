@@ -154,6 +154,7 @@ export type IconName =
   | 'plus'
   | 'wifi'
   | 'home'
+  | 'finance'
   | 'more';
 export function Icon({
   name,
@@ -166,6 +167,12 @@ export function Icon({
 }) {
   const t = useTheme();
   const paths: Record<IconName, React.ReactNode> = {
+    finance: (
+      <>
+        <Rect x="3" y="5" width="18" height="15" rx="2" />
+        <Path d="M3 9h18M15 13h6v4h-6z" />
+      </>
+    ),
     sessions: (
       <>
         <Rect x="4" y="5.5" width="16" height="14" rx="2" />

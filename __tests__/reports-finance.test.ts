@@ -67,7 +67,11 @@ test('money input converts exactly and excludes already-paid records from bulk t
   expect(selectedOutstandingTotal(rows, new Set([1, 2]))).toBe(10000);
 });
 function workspace(): DemoFinanceData &
-  DemoFeatureData & { settings: Settings; rosters: Record<number, Roster>; sessions: [] } {
+  DemoFeatureData & {
+    settings: Settings;
+    rosters: Record<number, Roster>;
+    sessions: [];
+  } {
   return {
     sessions: [],
     settings: {

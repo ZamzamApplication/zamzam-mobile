@@ -40,7 +40,8 @@ going offline; creating shared records and publishing drafts require a connectio
 
 ## Finance, reports, and audit history
 
-The More tab includes the financial workspace for administrators and auditors.
+The bottom navigation opens the financial workspace for administrators and auditors;
+reports and audit history are available from More.
 It follows the website's portrait layout: two-column summary tiles, subscription
 and expense tabs, monthly filters, and Cairo typography. Auditors can view data;
 administrators can record individual or selected bulk payments, review/share
