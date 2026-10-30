@@ -340,9 +340,14 @@ export class OfflineEngine {
     });
     return value;
   }
-  async formDraft(key: string, value: unknown) {
+  async formDraft(key: string, value: unknown, expected?: unknown) {
     await this.mutate(data => {
       data.formDrafts ||= {};
+      if (
+        expected !== undefined &&
+        JSON.stringify(data.formDrafts[key]) !== JSON.stringify(expected)
+      )
+        return;
       if (value === undefined) delete data.formDrafts[key];
       else data.formDrafts[key] = value;
     });

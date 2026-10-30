@@ -265,9 +265,11 @@ export function QuranScreen({
 export function RangeFields({
   value,
   change,
+  allowDirection = true,
 }: {
   value: QuranProgressInput;
   change: (v: Partial<QuranProgressInput>) => void;
+  allowDirection?: boolean;
 }) {
   return (
     <>
@@ -282,17 +284,19 @@ export function RangeFields({
           { value: 'page', label: 'صفحات' },
         ]}
       />
-      <Select
-        label="الاتجاه"
-        value={value.direction || 'forward'}
-        onChange={direction =>
-          change({ direction: direction as 'forward' | 'backward' })
-        }
-        options={[
-          { value: 'forward', label: 'من الفاتحة إلى الناس' },
-          { value: 'backward', label: 'من الناس إلى الفاتحة' },
-        ]}
-      />
+      {allowDirection && (
+        <Select
+          label="الاتجاه"
+          value={value.direction || 'forward'}
+          onChange={direction =>
+            change({ direction: direction as 'forward' | 'backward' })
+          }
+          options={[
+            { value: 'forward', label: 'من الفاتحة إلى الناس' },
+            { value: 'backward', label: 'من الناس إلى الفاتحة' },
+          ]}
+        />
+      )}
       {value.range_type === 'page' ? (
         <>
           <Field
@@ -472,16 +476,20 @@ export function StudentProgressScreen({
   const { data, online } = useEngine(engine);
   const action = useAction();
   const [goal, setGoal] = useState(false);
-  const [date, setDate] = useState(localDate());
-  const draft = useDraft<QuranProgressInput>(engine, `goal:${studentId}`, {
-    student_id: studentId,
-    category: 'new_memorization',
-    range_type: 'page',
-    from_page: 1,
-    to_page: 20,
-    quality_score: 5,
-    notes: '',
-  });
+  const draft = useDraft<QuranProgressInput & { target_date?: string }>(
+    engine,
+    `goal:${studentId}`,
+    {
+      student_id: studentId,
+      category: 'new_memorization',
+      range_type: 'page',
+      from_page: 1,
+      to_page: 20,
+      quality_score: 5,
+      notes: '',
+      target_date: localDate(),
+    },
+  );
   const writable = data.user.role !== 'auditor';
   return (
     <FeaturePage
@@ -508,11 +516,15 @@ export function StudentProgressScreen({
       )}
       {goal && (
         <Card>
-          <RangeFields value={draft.value} change={draft.change} />
+          <RangeFields
+            value={draft.value}
+            change={draft.change}
+            allowDirection={false}
+          />
           <Field
             label="تاريخ الهدف YYYY-MM-DD"
-            value={date}
-            onChangeText={setDate}
+            value={draft.value.target_date || ''}
+            onChangeText={target_date => draft.change({ target_date })}
           />
           <Field
             label="ملاحظات الهدف"
@@ -525,7 +537,7 @@ export function StudentProgressScreen({
             busy={action.busy}
             onPress={() => {
               void action.run(async () => {
-                validateProgress(draft.value);
+                validateProgress({ ...draft.value, direction: 'forward' });
                 const v = draft.value;
                 await engine.publish(`/students/${studentId}/goals`, {
                   range_type: v.range_type,
@@ -536,7 +548,7 @@ export function StudentProgressScreen({
                   from_ayah: v.range_type === 'surah_ayah' ? v.from_ayah : null,
                   to_surah: v.range_type === 'surah_ayah' ? v.to_surah : null,
                   to_ayah: v.range_type === 'surah_ayah' ? v.to_ayah : null,
-                  target_date: date || null,
+                  target_date: v.target_date || null,
                   notes: v.notes,
                 });
                 await draft.clear();

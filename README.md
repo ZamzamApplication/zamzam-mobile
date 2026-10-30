@@ -22,6 +22,22 @@ cyan surfaces, RTL controls, the Tahfiz picker, and bottom navigation.
 - Light/dark appearance, secure native login, refresh rotation, device logout,
   and an explicitly labelled demo isolated from production.
 
+## People and Quran features
+
+The More tab opens student and sheikh directories, student profiles with attendance
+summaries, warnings, excuses, leave, and transfers. Administrative forms keep
+encrypted drafts; publishing needs a connection and server permission.
+
+Quran tracking supports session entries, forward/reverse ranges, quality,
+mistakes, notes, next assignments, history, goals, and student plans. Session Quran
+entries use a durable offline outbox with explicit conflict review. Confirmation
+waits until attendance and Quran changes have synchronized.
+
+Personal Quran plans include schedule generation, a cached library, progress
+drafts, sharing, archiving, and deletion. Publishing a plan or completion uses the
+server version to detect concurrent changes. Download the relevant screens before
+going offline; creating shared records and publishing drafts require a connection.
+
 ## Offline behavior
 
 Attendance writes commit locally **before** the app reports them saved. SQLCipher

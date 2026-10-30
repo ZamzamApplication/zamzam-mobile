@@ -207,6 +207,19 @@ test('a failed local commit does not claim a saved attendance edit', async () =>
   expect(stored.get('account:1:42')?.queue).toHaveLength(0);
   engine.dispose();
 });
+test('publishing a draft preserves edits made while the request is in flight', async () => {
+  const remote = server();
+  const engine = await OfflineEngine.open(remote.client, user);
+  const published = { name: 'Published' };
+  const newer = { name: 'New edit' };
+  await engine.formDraft('student:new', published);
+  await engine.formDraft('student:new', newer);
+  await engine.formDraft('student:new', undefined, published);
+  expect(engine.view.data.formDrafts?.['student:new']).toEqual(newer);
+  await engine.formDraft('student:new', undefined, newer);
+  expect(engine.view.data.formDrafts?.['student:new']).toBeUndefined();
+  engine.dispose();
+});
 test('cached feature resources survive offline restart and are purged after revoked access', async () => {
   const remote = server();
   const engine = await OfflineEngine.open(remote.client, user);

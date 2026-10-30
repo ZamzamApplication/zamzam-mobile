@@ -37,7 +37,7 @@ export function useDraft<T>(engine: OfflineEngine, key: string, initial: T) {
     value,
     change,
     error,
-    clear: () => engine.formDraft(key, undefined),
+    clear: () => engine.formDraft(key, undefined, value),
   };
 }
 export function FeaturePage({
