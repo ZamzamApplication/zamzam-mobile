@@ -5,6 +5,14 @@ the React Native client. The complete, machine-readable contract is in
 [`openapi.json`](./openapi.json), and an import-ready collection is in
 [`Zamzam-Mobile.postman_collection.json`](./Zamzam-Mobile.postman_collection.json).
 
+For the Tahfiz switcher and Halaqat page only, import
+[`Zamzam-Tahfiz-Halaqat.postman_collection.json`](./Zamzam-Tahfiz-Halaqat.postman_collection.json).
+Set `baseUrl`, `username`, and `password`, then run **Login** and **Get Me**.
+Choose an active membership ID for `targetTahfizId` and run **Switch Tahfiz**;
+it updates `tahfizId` automatically for subsequent requests. The default base
+URL is local development; production is `https://zamzam-api.fly.dev`.
+Run the create/delete requests individually after setting their input variables.
+
 The contract currently describes API version 2.0.0, with 135 operations and 82
 schemas. FastAPI also serves interactive Swagger documentation at `/docs` and
 ReDoc at `/redoc` on a running API instance.

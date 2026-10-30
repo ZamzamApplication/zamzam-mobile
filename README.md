@@ -1,103 +1,120 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# زمزم — Zamzam Mobile
 
-## API integration
+Arabic-first React Native app matching the portrait web client: Cairo fonts,
+cyan surfaces, RTL controls, the Tahfiz picker, and bottom navigation.
 
-- [Mobile API guide](docs/API.md)
-- [OpenAPI contract](docs/openapi.json)
-- [Postman collection](docs/Zamzam-Mobile.postman_collection.json)
+## Initial features
 
-# Getting Started
+- Home: the website's dashboard summary, next/pending sessions, student and
+  sheikh counts, completion rate, and quick actions. Attention items highlight
+  overdue sessions, today's sessions, sync issues, and unpublished settings drafts.
+  Summary responses are encrypted and cached separately for each account/tahfiz.
+- Sessions: cached open sessions and 90 days of history; online session creation.
+- Attendance: teacher groups, search, configurable status cycling/picker, notes,
+  teacher reassignment, bulk marking, confirmation, and reasoned reopening.
+- Attendance record: monthly periods respecting the configured month start,
+  teacher/name filters, and a horizontal attendance table.
+- Tahfiz switching: active memberships online; previously downloaded workspaces
+  offline. Each workspace keeps its own data, settings drafts, cursor, and outbox.
+- Settings: general data, attendance rules/colors/status renames, Qur'an tracking,
+  Excel templates, invitations, and WhatSend configuration. Server authorization
+  remains authoritative; administrative controls are hidden for non-admins.
+- Light/dark appearance, secure native login, refresh rotation, device logout,
+  and an explicitly labelled demo isolated from production.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## Offline behavior
 
-## Step 1: Start Metro
+Attendance writes commit locally **before** the app reports them saved. SQLCipher
+stores datasets, drafts, sync cursors, and mutations in one encrypted database;
+the encryption key and auth tokens are in Keychain / Android Keystore-backed
+storage. AsyncStorage holds only appearance and selected demo/account mode.
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+The first connection downloads `/sync/v1/bootstrap` and complete session rosters
+(the latter preserve explicit session membership). A durable outbox pushes to
+`/sync/v1/mutations`, then consumes `/sync/v1/changes`. Data and cursors commit in
+the same local transaction. Once attempted, a mutation's id and payload never
+change. An interrupted request is retried with that id, including after an app
+restart. Later edits to the same attendance row wait behind its receipt and are
+rebased only after that preceding edit is acknowledged.
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+Connection restoration, app foregrounding, a short edit debounce, manual retry,
+and a foreground timer trigger synchronization. Automatic failures back off.
+Pending changes and rejected/conflicting changes are visible in the sync panel.
+Conflicts show local and server values; the user chooses the server version or
+explicitly resubmits against the current revision. Rejected edits do not loop.
+
+Previously downloaded data remains available without a network, including after
+a cold start. A workspace's first download, session creation, confirmation,
+reopening, and publishing shared settings need a connection. Settings edits are
+saved as encrypted local drafts while offline. API keys are never saved in drafts.
+Signing out removes auth credentials; encrypted pending data remains scoped to the
+same account and is available after that account signs in again.
+
+## Development
+
+Use Node 22.11+, Java 21 (Gradle also provisions its Java 17 toolchain), Android SDK
+37.0, build tools 37.0.0, NDK 27.1.12297006, and CMake 3.22.1. SQLCipher is enabled
+through the `op-sqlite` entry in `package.json`.
 
 ```sh
-# Using npm
+npm ci
 npm start
-
-# OR using Yarn
-yarn start
 ```
 
-## Step 2: Build and run your app
-
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
+In another terminal, with the emulator running:
 
 ```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
+npm run android -- --active-arch-only --no-packager
 ```
 
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+For a self-contained emulator APK that starts without Metro:
 
 ```sh
-bundle install
+npm run android:standalone
 ```
 
-Then, and every time you update your native dependencies, run:
+This repository's existing release configuration signs that internal test build
+with its debug key. Configure private release signing before distributing a
+production build. The command builds only the emulator's x86_64 ABI; omit
+`-PreactNativeArchitectures=x86_64` to build all configured device ABIs.
+
+The normal API is `https://zamzam-api.fly.dev`. Debug builds expose an optional
+server field on login; local HTTP is limited to localhost and Android's host alias
+`10.0.2.2`. Production builds use HTTPS. See [the API guide](docs/API.md) and
+[OpenAPI](docs/openapi.json).
+
+The login screen includes a server connection check against `/health`. Signing
+in uses the Fly backend's authentication, attendance sync, settings, and dashboard
+endpoints; demo mode continues to use separate local fixtures. The home page uses
+the same `/reports/dashboard-summary` and `/sessions/upcoming` APIs as the website.
+
+On iOS, run `bundle install` and `bundle exec pod install` under `ios/` as appropriate.
+Fonts and their OFL license are included; the asset configuration links both
+platforms. iOS native compilation requires macOS and is not covered by Android
+emulator verification.
+
+## Validation
 
 ```sh
-bundle exec pod install
+npm run typecheck
+npm run lint
+npm test -- --runInBand
+python scripts/emulator-smoke.py --serial emulator-5554 --agent-device /path/from/device_open/agent-device
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+Open the emulator through T3 Code's `device_open` tool and pass its device-bound
+`agent-device` command to the script. UI actions, network settings, screenshots,
+and restarts then appear in the Device panel.
 
-```sh
-# Using npm
-npm run ios
+The emulator script requires the labelled demo mode, changes only demo data,
+exercises network loss and cold restarts, and restores the original Wi-Fi/mobile
+settings in `finally`. It captures local evidence under ignored `artifacts/`.
+It checks attendance/notes persistence, cached tenant isolation, settings drafts,
+reconnection, attendance history, and theme switching. It also verifies that the
+database does not have a plaintext SQLite header, using `run-as` for debug builds
+or root file access on the Android userdebug emulator for standalone builds.
 
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+The backend change alongside this client removes an incorrect dependency between
+attendance sync and Qur'an-progress tracking. Its tests cover receipt replay,
+revision conflicts, tenant isolation, and confirmed-session locking. It must be
+included when deploying the API; this work does not deploy either application.
