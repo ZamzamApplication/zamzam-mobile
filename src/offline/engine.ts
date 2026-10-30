@@ -176,6 +176,56 @@ export class OfflineEngine {
     }, 800);
   }
   async resolve(key: string, keepLocal: boolean) {
+    if (keepLocal) {
+      if (!this.view.online)
+        throw new Error(
+          'اتصل بالإنترنت لتحميل أحدث نسخة قبل إعادة إرسال تعديلك.',
+        );
+      const failed = this.view.data.queue.find(
+        p => p.entity_key === key && p.issue,
+      );
+      if (!failed) return;
+      if (failed.issue === 'scope_changed')
+        throw new Error(
+          'تغيرت صلاحيات الحساب. راجع البيانات مع المدير قبل إعادة التسجيل.',
+        );
+      const id = failed.values.session_id;
+      await this.loadRoster(id);
+      const bootstrap = await this.request<Bootstrap>(
+        '/sync/v1/bootstrap?history_days=90',
+      );
+      await this.mutate(data => {
+        const latest = data.queue.filter(p => p.entity_key === key).at(-1);
+        if (!latest) return;
+        const roster = data.rosters[id];
+        if (roster.is_confirmed)
+          throw new Error(
+            'الحلقة مؤكدة. أعد فتحها أولاً أو استخدم نسخة الخادم.',
+          );
+        if (
+          !roster.sheikh_groups.some(g =>
+            g.students.some(s => s.id === latest.values.student_id),
+          )
+        )
+          throw new Error('الطالب لم يعد ضمن طلاب الحلقة.');
+        const settings = { ...data.settings, ...bootstrap.tahfiz };
+        if (!settings.attendance_statuses?.includes(latest.values.status))
+          throw new Error(
+            'تغيرت حالات الحضور. اختر حالة صالحة قبل إعادة الإرسال.',
+          );
+        const current = bootstrap.attendance.find(
+          a => a.session_id === id && a.student_id === latest.values.student_id,
+        );
+        if (current) data.attendance[key] = current;
+        else delete data.attendance[key];
+        const issue = data.queue.find(p => p.entity_key === key && p.issue)!;
+        issue.issue = 'revision_conflict';
+        issue.server = current || null;
+        resolveMutation(data, key, true, this.client.deviceId);
+      });
+      await this.sync();
+      return;
+    }
     await this.mutate(data =>
       resolveMutation(data, key, keepLocal, this.client.deviceId),
     );
@@ -210,8 +260,35 @@ export class OfflineEngine {
   }
   async loadRoster(id: number) {
     const roster = await this.request<Roster>(`/sessions/${id}/attendance`);
+    const students = roster.sheikh_groups.flatMap(g => g.students);
+    const missingRevision = students.some(
+      s =>
+        s.attendance_id !== null &&
+        s.revision === undefined &&
+        !this.view.data.attendance[attendanceKey(id, s.id)],
+    );
+    // Older API versions omit revisions in rosters. Fetch their baseline once;
+    // existing membership rows must never be submitted as new revision-zero rows.
+    const fallback = missingRevision
+      ? await this.request<Bootstrap>('/sync/v1/bootstrap?history_days=90')
+      : undefined;
     await this.mutate(data => {
       data.rosters[id] = roster;
+      for (const row of fallback?.attendance || [])
+        if (row.session_id === id)
+          data.attendance[attendanceKey(id, row.student_id)] = row;
+      for (const student of students) {
+        if (student.attendance_id !== null && student.revision !== undefined)
+          data.attendance[attendanceKey(id, student.id)] = {
+            id: student.attendance_id,
+            session_id: id,
+            student_id: student.id,
+            revision: student.revision,
+            status: student.status,
+            notes: student.notes || null,
+            sheikh_id: student.sheikh_id,
+          };
+      }
       const session = data.sessions.find(s => s.id === id);
       if (session) Object.assign(session, { ...roster, id });
     });
