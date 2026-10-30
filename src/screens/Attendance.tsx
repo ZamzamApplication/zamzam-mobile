@@ -489,10 +489,12 @@ export function AttendanceScreen({
   engine,
   id,
   onBack,
+  onReview,
 }: {
   engine: OfflineEngine;
   id: number;
   onBack: () => void;
+  onReview?: () => void;
 }) {
   const { data, online, syncing } = useEngine(engine);
   const t = useTheme();
@@ -531,6 +533,7 @@ export function AttendanceScreen({
     );
   const students = roster.sheikh_groups.flatMap(g => g.students);
   const pending = data.queue.filter(q => q.values.session_id === id);
+  const blocked = pending.filter(q => q.issue).length;
   const disabled = roster.is_confirmed || data.user.role === 'auditor' || busy;
   const visibleGroups = roster.sheikh_groups
     .map(g => ({
@@ -562,17 +565,52 @@ export function AttendanceScreen({
           roster.date,
         )}`}
       />
+      {blocked > 0 && (
+        <Card>
+          <Txt bold style={{ color: '#be123c' }}>
+            توقفت المزامنة لأن {blocked} تعديل يحتاج مراجعة.
+          </Txt>
+          <Txt muted>
+            لن تُرسل التعديلات التالية لهذا الطالب ولن يمكن تأكيد الحلقة حتى
+            تختار النسخة التي تريد حفظها.
+          </Txt>
+          <Button
+            secondary
+            title="مراجعة سبب إيقاف المزامنة"
+            onPress={() => onReview?.()}
+            testID="review-blocked-attendance"
+          />
+        </Card>
+      )}
+      {pending.length > 0 && !blocked && (
+        <Txt muted style={{ fontSize: 12 }}>
+          يمكن تأكيد الحلقة بعد اكتمال مزامنة تغييرات الحضور.
+        </Txt>
+      )}
       <View style={s.row}>
         <Button
           title={
-            pending.length ? `مزامنة التغييرات (${pending.length})` : 'مزامنة'
+            blocked
+              ? `مراجعة التعديلات (${blocked})`
+              : pending.length
+              ? `مزامنة التغييرات (${pending.length})`
+              : 'مزامنة'
           }
           icon="sync"
           onPress={() => {
-            void engine.sync();
+            if (blocked && onReview) onReview();
+            else
+              void engine.sync().then(() => {
+                if (
+                  engine.view.data.queue.some(
+                    q => q.values.session_id === id && q.issue,
+                  )
+                )
+                  onReview?.();
+              });
           }}
           busy={syncing}
-          disabled={!online || busy}
+          disabled={(!online && !blocked) || busy}
           style={{ flex: 1 }}
         />
         {canManage(data.user) && (

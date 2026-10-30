@@ -206,3 +206,133 @@ test('a failed local commit does not claim a saved attendance edit', async () =>
   expect(stored.get('account:1:42')?.queue).toHaveLength(0);
   engine.dispose();
 });
+test('a newly loaded roster supplies the server revision for its existing membership rows', async () => {
+  const remote = server();
+  const engine = await OfflineEngine.open(remote.client, user);
+  const original = remote.client.request;
+  remote.client.request = async (path, options) => {
+    if (path === '/sessions/10/attendance')
+      return {
+        ...roster,
+        sheikh_groups: roster.sheikh_groups.map(g => ({
+          ...g,
+          students: g.students.map(s => ({
+            ...s,
+            attendance_id: 900,
+            revision: 4,
+          })),
+        })),
+      } as never;
+    return original(path, options);
+  };
+  await engine.loadRoster(10);
+  engine.setOnline(false);
+  await engine.editStudent(10, 1, { status: 'حاضر' });
+  expect(engine.view.data.queue[0].base_revision).toBe(4);
+  engine.dispose();
+});
+test('older APIs without roster revisions are bootstrapped before editing a new membership row', async () => {
+  const remote = server();
+  const engine = await OfflineEngine.open(remote.client, user);
+  const original = remote.client.request;
+  remote.client.request = async (path, options) => {
+    if (path === '/sessions/10/attendance')
+      return {
+        ...roster,
+        sheikh_groups: roster.sheikh_groups.map(g => ({
+          ...g,
+          students: g.students.map(s => ({ ...s, attendance_id: 900 })),
+        })),
+      } as never;
+    if (path.startsWith('/sync/v1/bootstrap'))
+      return {
+        schema_version: 2,
+        cursor: 9,
+        tahfiz: user.tahfiz,
+        sessions: [],
+        attendance: [
+          {
+            id: 900,
+            session_id: 10,
+            student_id: 1,
+            status: 'غياب',
+            notes: null,
+            sheikh_id: 5,
+            revision: 6,
+          },
+        ],
+      } as never;
+    return original(path, options);
+  };
+  await engine.loadRoster(10);
+  engine.setOnline(false);
+  await engine.editStudent(10, 1, { status: 'حاضر' });
+  expect(engine.view.data.queue[0].base_revision).toBe(6);
+  engine.dispose();
+});
+test('review retries the newest edit with a fresh id and current server revision, then confirmation succeeds', async () => {
+  const remote = server();
+  const engine = await OfflineEngine.open(remote.client, user);
+  await engine.sync();
+  engine.setOnline(false);
+  await engine.editStudent(10, 1, { status: 'حاضر', notes: 'first edit' });
+  engine.view.data.queue[0].attempted = true;
+  engine.view.data.queue[0].issue = 'revision_conflict';
+  engine.view.data.queue[0].server = {
+    id: 900,
+    session_id: 10,
+    student_id: 1,
+    status: 'غياب',
+    notes: null,
+    sheikh_id: 5,
+    revision: 2,
+  };
+  const oldId = engine.view.data.queue[0].mutation_id;
+  await engine.editStudent(10, 1, { notes: 'latest edit' });
+  engine.view.online = true;
+  await expect(engine.transition(10, 'confirm')).rejects.toThrow(
+    'زامن التغييرات',
+  );
+  const original = remote.client.request;
+  remote.client.request = async (path, options) => {
+    if (path.startsWith('/sync/v1/bootstrap'))
+      return {
+        schema_version: 2,
+        cursor: 0,
+        tahfiz: user.tahfiz,
+        sessions: [],
+        attendance: [
+          {
+            id: 900,
+            session_id: 10,
+            student_id: 1,
+            status: 'غياب',
+            notes: null,
+            sheikh_id: 5,
+            revision: 3,
+          },
+        ],
+      } as never;
+    if (path === '/sessions/10/confirm') return {} as never;
+    return original(path, options);
+  };
+  engine.view.online = true;
+  await expect(
+    engine.resolve(engine.view.data.queue[0].entity_key, true),
+  ).rejects.toThrow('تغيرت نسخة الخادم');
+  expect(engine.view.data.queue).toHaveLength(2);
+  expect(
+    remote.request.mock.calls.some(([path]) => path === '/sync/v1/mutations'),
+  ).toBe(false);
+  await engine.resolve(engine.view.data.queue[0].entity_key, true);
+  const call = remote.request.mock.calls.find(
+    ([path]) => path === '/sync/v1/mutations',
+  );
+  const sent = JSON.parse(String(call![1]?.body)).mutations[0];
+  expect(sent.mutation_id).not.toBe(oldId);
+  expect(sent.base_revision).toBe(3);
+  expect(sent.values.notes).toBe('latest edit');
+  expect(engine.view.data.queue).toEqual([]);
+  await expect(engine.transition(10, 'confirm')).resolves.toBeUndefined();
+  engine.dispose();
+});

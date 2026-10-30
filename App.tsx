@@ -293,7 +293,8 @@ function SyncPanel({
     entity_not_found: 'الطالب أو الحلقة لم يعودا متاحين لهذا الحساب.',
     invalid_attendance_status: 'تغيرت حالات الحضور في إعدادات التحفيظ.',
     invalid_sheikh: 'الشيخ المختار غير متاح.',
-    session_progress_disabled: 'الخادم يحتاج إلى تحديث إصلاح مزامنة الحضور.',
+    session_progress_disabled:
+      'رُفض هذا التعديل قبل تحديث الخادم. يمكنك الآن إعادة إرساله بعد مراجعة بياناته.',
     scope_changed: 'تغيرت صلاحيات الحساب. راجع البيانات مع المدير.',
   };
   return (
@@ -310,6 +311,9 @@ function SyncPanel({
       <Txt>
         {pending.length} تغيير بانتظار المزامنة · {issues.length} يحتاج مراجعة
       </Txt>
+      {issues.length > 0 && (
+        <Notice message="المزامنة العادية لا تستبدل التعديلات المتعارضة. راجع كل طالب أدناه، ثم اختر إعادة إرسال أحدث تعديلاتك أو استخدام بيانات الخادم. بعد حلها ستتاح إمكانية تأكيد الحلقة." />
+      )}
       <Txt muted style={{ fontSize: 12 }}>
         آخر مزامنة:{' '}
         {data.lastSync
@@ -359,13 +363,29 @@ function SyncPanel({
               {latest.values.notes ? ` · ${latest.values.notes}` : ''}
             </Txt>
             <Txt>
-              الخادم: {issue.server?.status || 'لا يوجد سجل'}
-              {issue.server?.notes ? ` · ${issue.server.notes}` : ''}
+              الخادم:{' '}
+              {(issue.server === undefined
+                ? data.attendance[issue.entity_key]
+                : issue.server
+              )?.status || 'لا يوجد سجل'}
+              {(issue.server === undefined
+                ? data.attendance[issue.entity_key]
+                : issue.server
+              )?.notes
+                ? ` · ${
+                    (issue.server === undefined
+                      ? data.attendance[issue.entity_key]
+                      : issue.server
+                    )?.notes
+                  }`
+                : ''}
             </Txt>
-            {issue.issue === 'revision_conflict' && (
+            {issue.issue !== 'scope_changed' && (
               <Button
                 secondary
-                title="إعادة إرسال تعديلي"
+                title="إعادة إرسال أحدث تعديلاتي"
+                disabled={!online || syncing}
+                testID={`retry-mutation-${issue.values.student_id}`}
                 onPress={() => resolve(true)}
               />
             )}
@@ -665,6 +685,7 @@ function Workspace({
             engine={engine}
             id={sessionId}
             onBack={() => setSessionId(null)}
+            onReview={() => setSyncOpen(true)}
           />
         ) : page === 'home' ? (
           <HomeScreen
