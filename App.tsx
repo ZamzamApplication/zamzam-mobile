@@ -369,8 +369,22 @@ function SyncPanel({
               {latest.values.notes ? ` · ${latest.values.notes}` : ''}
             </Txt>
             <Txt>
-              الخادم: {issue.server?.status || 'لا يوجد سجل'}
-              {issue.server?.notes ? ` · ${issue.server.notes}` : ''}
+              الخادم:{' '}
+              {(issue.server === undefined
+                ? data.attendance[issue.entity_key]
+                : issue.server
+              )?.status || 'لا يوجد سجل'}
+              {(issue.server === undefined
+                ? data.attendance[issue.entity_key]
+                : issue.server
+              )?.notes
+                ? ` · ${
+                    (issue.server === undefined
+                      ? data.attendance[issue.entity_key]
+                      : issue.server
+                    )?.notes
+                  }`
+                : ''}
             </Txt>
             {issue.issue !== 'scope_changed' && (
               <Button

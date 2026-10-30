@@ -379,9 +379,21 @@ test('review retries the newest edit with a fresh id and current server revision
   await engine.editStudent(10, 1, { status: 'حاضر', notes: 'first edit' });
   engine.view.data.queue[0].attempted = true;
   engine.view.data.queue[0].issue = 'revision_conflict';
+  engine.view.data.queue[0].server = {
+    id: 900,
+    session_id: 10,
+    student_id: 1,
+    status: 'غياب',
+    notes: null,
+    sheikh_id: 5,
+    revision: 2,
+  };
   const oldId = engine.view.data.queue[0].mutation_id;
   await engine.editStudent(10, 1, { notes: 'latest edit' });
-  await expect(engine.transition(10, 'confirm')).rejects.toThrow();
+  engine.view.online = true;
+  await expect(engine.transition(10, 'confirm')).rejects.toThrow(
+    'زامن التغييرات',
+  );
   const original = remote.client.request;
   remote.client.request = async (path, options) => {
     if (path.startsWith('/sync/v1/bootstrap'))
@@ -406,6 +418,13 @@ test('review retries the newest edit with a fresh id and current server revision
     return original(path, options);
   };
   engine.view.online = true;
+  await expect(
+    engine.resolve(engine.view.data.queue[0].entity_key, true),
+  ).rejects.toThrow('تغيرت نسخة الخادم');
+  expect(engine.view.data.queue).toHaveLength(2);
+  expect(
+    remote.request.mock.calls.some(([path]) => path === '/sync/v1/mutations'),
+  ).toBe(false);
   await engine.resolve(engine.view.data.queue[0].entity_key, true);
   const call = remote.request.mock.calls.find(
     ([path]) => path === '/sync/v1/mutations',
