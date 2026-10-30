@@ -38,6 +38,30 @@ drafts, sharing, archiving, and deletion. Publishing a plan or completion uses t
 server version to detect concurrent changes. Download the relevant screens before
 going offline; creating shared records and publishing drafts require a connection.
 
+## Finance, reports, and audit history
+
+The More tab includes the financial workspace for administrators and auditors.
+It follows the website's portrait layout: two-column summary tiles, subscription
+and expense tabs, monthly filters, and Cairo typography. Auditors can view data;
+administrators can record individual or selected bulk payments, review/share
+receipts, cancel payments, correct fees, publish subscription settings, and
+create, edit, or delete expenses. Financial forms retain encrypted drafts offline;
+payments and publishing require an online confirmation. Failed responses are not
+automatically retried; review server records before retrying an uncertain write.
+
+Attendance and Quran reports support date/teacher filters, student search and
+sorting, profile links, and cached offline results. Attendance reports count
+confirmed sessions; the existing Quran report also includes unconfirmed sessions.
+The admin audit log supports server-side search, action/actor/date filters, and
+pagination. Every applied filter/page has its own encrypted cache key, so a failed
+request cannot label an older result with a new period.
+
+Remaining website parity work includes Excel file export, financial category
+administration and historical period generation, trips, user/access management,
+public signup/invite flows, feedback/platform administration, and additional
+student/session management actions. Receipt sharing currently uses native text
+sharing. Existing server permissions remain authoritative.
+
 ## Offline behavior
 
 Attendance writes commit locally **before** the app reports them saved. SQLCipher
@@ -123,6 +147,7 @@ npm run lint
 npm test -- --runInBand
 python scripts/emulator-smoke.py --serial emulator-5554 --agent-device /path/from/device_open/agent-device
 python scripts/features-smoke.py --serial emulator-5554 --agent-device /path/from/device_open/agent-device
+python scripts/finance-smoke.py --serial emulator-5554 --agent-device /path/from/device_open/agent-device
 ```
 
 Open the emulator through T3 Code's `device_open` tool and pass its device-bound
