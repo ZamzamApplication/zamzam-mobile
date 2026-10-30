@@ -104,6 +104,14 @@ android {
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
+        // Bundled internal test APK. Native dependencies must use release too:
+        // mixing debug React Native with release C++ code changes the props ABI.
+        offline {
+            initWith release
+            matchingFallbacks = ['release']
+            signingConfig signingConfigs.debug
+            manifestPlaceholders = [usesCleartextTraffic: false]
+        }
     }
 }
 
