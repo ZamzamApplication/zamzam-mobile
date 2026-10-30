@@ -13,8 +13,14 @@ export function homeAttention(data: WorkspaceData, today = localDate()) {
     pending,
     overdue: pending.filter(item => item.date < today),
     today: pending.filter(item => item.date === today),
-    issues: data.queue.filter(item => item.issue).length,
-    waiting: data.queue.filter(item => !item.issue).length,
-    drafts: canManage(data.user) ? Object.keys(data.settingsDrafts).length : 0,
+    issues: [...data.queue, ...(data.quranQueue || [])].filter(
+      item => item.issue,
+    ).length,
+    waiting: [...data.queue, ...(data.quranQueue || [])].filter(
+      item => !item.issue,
+    ).length,
+    drafts:
+      (canManage(data.user) ? Object.keys(data.settingsDrafts).length : 0) +
+      Object.keys(data.formDrafts || {}).length,
   };
 }

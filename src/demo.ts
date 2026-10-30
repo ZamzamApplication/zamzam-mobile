@@ -1,6 +1,8 @@
 import { readDocument, writeDocument } from './offline/database';
 import { ApiError } from './api';
 import { absentFor, localDate } from './types';
+import { demoFeature } from './demo-features';
+import type { DemoFeatureData } from './demo-features';
 import { DEFAULT_EXCEL_EXPORT_TEMPLATES } from './excel-templates';
 import type {
   AttendanceUpdate,
@@ -13,7 +15,7 @@ import type {
   User,
 } from './types';
 
-interface Workspace {
+interface Workspace extends DemoFeatureData {
   settings: Settings;
   sessions: Session[];
   rosters: Record<number, Roster>;
@@ -46,7 +48,7 @@ function fixtures(id: number): Workspace {
     restrict_sheikh_student_access: true,
     multiple_sessions_per_day_enabled: false,
     session_name_options: ['الصباحية', 'المسائية'],
-    progress_tracking_enabled: false,
+    progress_tracking_enabled: true,
     progress_categories: ['new_memorization', 'recent_revision'],
     attendance_streak_limit: 3,
     attendance_streak_status: 'غياب بعذر',
@@ -68,7 +70,7 @@ function fixtures(id: number): Workspace {
       version: 1,
       is_confirmed: index === 2,
       status: index === 2 ? 'confirmed' : 'draft',
-      quran_progress_enabled: false,
+      quran_progress_enabled: true,
       student_count: 6,
     };
   });
@@ -113,6 +115,7 @@ function fixtures(id: number): Workspace {
               : 'حاضر'
             : 'غياب',
           notes: '',
+          quran_progress_enabled: true,
           sheikh_id: sheikh.id,
         })),
       })),
@@ -140,8 +143,28 @@ export class DemoClient implements Gateway {
     if (saved) {
       try {
         const d = saved;
-        if (d.workspaces?.[1] && d.workspaces?.[2])
-          return new DemoClient(d.tenant, d.workspaces);
+        if (d.workspaces?.[1] && d.workspaces?.[2]) {
+          for (const w of Object.values(d.workspaces))
+            if (!w.featureVersion) {
+              w.featureVersion = 1;
+              w.cursor = (w.cursor || 0) + 1;
+              w.settings.progress_tracking_enabled = true;
+              w.sessions.forEach(session => {
+                session.quran_progress_enabled = true;
+              });
+              Object.values(w.rosters).forEach(roster => {
+                roster.quran_progress_enabled = true;
+                roster.sheikh_groups.forEach(g =>
+                  g.students.forEach(student => {
+                    student.quran_progress_enabled = true;
+                  }),
+                );
+              });
+            }
+          const client = new DemoClient(d.tenant, d.workspaces);
+          await client.persist();
+          return client;
+        }
       } catch {}
     }
     return new DemoClient();
@@ -210,6 +233,13 @@ export class DemoClient implements Gateway {
             })),
         ),
       );
+    const feature = demoFeature(w, route, method, body);
+    if (feature.handled) {
+      await this.persist();
+      return (
+        feature.value === undefined ? undefined : clone(feature.value)
+      ) as T;
+    }
     if (route === '/auth/me') return this.userFor(tenant) as T;
     if (route === '/reports/dashboard-summary') {
       const roster = Object.values(w.rosters)[0];
@@ -237,6 +267,7 @@ export class DemoClient implements Gateway {
         tahfiz: w.settings,
         sessions: w.sessions,
         attendance: attendance(),
+        quran_progress: w.progress || [],
       }) as T;
     if (route === '/sync/v1/changes') {
       const cursor = Number(new URLSearchParams(query).get('cursor')) || 0;
@@ -249,6 +280,12 @@ export class DemoClient implements Gateway {
                   entity_key: String(s.id),
                   operation: 'upsert',
                   payload: s,
+                })),
+                ...(w.progress || []).map(p => ({
+                  entity_type: 'quran_progress',
+                  entity_key: String(p.id),
+                  operation: 'upsert',
+                  payload: p,
                 })),
                 ...attendance().map(a => ({
                   entity_type: 'attendance',
@@ -269,6 +306,44 @@ export class DemoClient implements Gateway {
         const receipt = w.receipts[m.mutation_id];
         if (receipt) {
           results.push({ ...(receipt.result as object), replayed: true });
+          continue;
+        }
+        if (m.entity_type === 'quran_progress') {
+          const server = (w.progress || []).find(
+            p =>
+              p.session_id === m.values.session_id &&
+              p.student_id === m.values.student_id &&
+              p.category === m.values.category,
+          );
+          const roster = w.rosters[m.values.session_id];
+          let response;
+          if (roster?.is_confirmed)
+            response = { status: 'rejected', code: 'session_locked' };
+          else if ((server?.revision || 0) !== m.base_revision)
+            response = {
+              status: 'conflict',
+              code: 'revision_conflict',
+              server: server || null,
+            };
+          else {
+            const entry = {
+              ...m.values,
+              id: server?.id || Date.now(),
+              revision: (server?.revision || 0) + 1,
+            };
+            w.progress = [
+              ...(w.progress || []).filter(p => p !== server),
+              entry,
+            ];
+            w.cursor = (w.cursor || 0) + 1;
+            response = { status: 'applied', entity: entry };
+          }
+          const receipt = { ...response, mutation_id: m.mutation_id };
+          w.receipts[m.mutation_id] = {
+            body: JSON.stringify(m),
+            result: receipt,
+          };
+          results.push(receipt);
           continue;
         }
         const roster = w.rosters[m.values.session_id];
@@ -412,7 +487,7 @@ export class DemoClient implements Gateway {
         circle_name: w.settings.name,
         is_confirmed: false,
         status: 'draft',
-        quran_progress_enabled: false,
+        quran_progress_enabled: true,
         version: 1,
         student_count: 6,
       };

@@ -13,6 +13,7 @@ export function HomeScreen({
   onRecords,
   onSettings,
   onSync,
+  onMore,
 }: {
   engine: OfflineEngine;
   onOpen: (id: number) => void;
@@ -20,6 +21,7 @@ export function HomeScreen({
   onRecords: () => void;
   onSettings: () => void;
   onSync: () => void;
+  onMore?: () => void;
 }) {
   const { data, online, syncing, dashboardError } = useEngine(engine);
   const t = useTheme();
@@ -160,8 +162,8 @@ export function HomeScreen({
         {attention.drafts > 0 && (
           <Button
             secondary
-            title={`${attention.drafts} مسودة إعدادات غير منشورة`}
-            onPress={onSettings}
+            title={`${attention.drafts} مسودة غير منشورة`}
+            onPress={onMore || onSettings}
             testID="home-settings-drafts"
           />
         )}

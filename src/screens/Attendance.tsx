@@ -326,12 +326,14 @@ function StudentCard({
   engine,
   disabled,
   onError,
+  onProfile,
 }: {
   student: Student;
   roster: Roster;
   engine: OfflineEngine;
   disabled: boolean;
   onError: (message: string) => void;
+  onProfile?: (id: number) => void;
 }) {
   const { data } = useEngine(engine);
   const t = useTheme();
@@ -374,9 +376,14 @@ function StudentCard({
               : null
           }
         />
-        <Txt bold style={{ flex: 1 }}>
-          {student.name}
-        </Txt>
+        <Pressable
+          accessibilityRole="button"
+          style={{ flex: 1 }}
+          disabled={!onProfile}
+          onPress={() => onProfile?.(student.id)}
+        >
+          <Txt bold>{student.name}</Txt>
+        </Pressable>
         {pending.length > 0 && (
           <Txt style={{ fontSize: 10, color: issue ? '#be123c' : '#b45309' }}>
             {issue ? 'يحتاج مراجعة' : 'بانتظار المزامنة'}
@@ -489,11 +496,15 @@ export function AttendanceScreen({
   engine,
   id,
   onBack,
+  onProfile,
+  onQuran,
   onReview,
 }: {
   engine: OfflineEngine;
   id: number;
   onBack: () => void;
+  onProfile?: (id: number) => void;
+  onQuran?: () => void;
   onReview?: () => void;
 }) {
   const { data, online, syncing } = useEngine(engine);
@@ -565,6 +576,9 @@ export function AttendanceScreen({
           roster.date,
         )}`}
       />
+      {onQuran && data.settings.progress_tracking_enabled && (
+        <Button secondary title="تسجيل الحفظ والمراجعة" onPress={onQuran} />
+      )}
       {blocked > 0 && (
         <Card>
           <Txt bold style={{ color: '#be123c' }}>
@@ -782,6 +796,7 @@ export function AttendanceScreen({
                   engine={engine}
                   disabled={disabled}
                   onError={setError}
+                  onProfile={onProfile}
                 />
               ))}
             </View>

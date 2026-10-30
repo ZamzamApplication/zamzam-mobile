@@ -22,6 +22,22 @@ cyan surfaces, RTL controls, the Tahfiz picker, and bottom navigation.
 - Light/dark appearance, secure native login, refresh rotation, device logout,
   and an explicitly labelled demo isolated from production.
 
+## People and Quran features
+
+The More tab opens student and sheikh directories, student profiles with attendance
+summaries, warnings, excuses, leave, and transfers. Administrative forms keep
+encrypted drafts; publishing needs a connection and server permission.
+
+Quran tracking supports session entries, forward/reverse ranges, quality,
+mistakes, notes, next assignments, history, goals, and student plans. Session Quran
+entries use a durable offline outbox with explicit conflict review. Confirmation
+waits until attendance and Quran changes have synchronized.
+
+Personal Quran plans include schedule generation, a cached library, progress
+drafts, sharing, archiving, and deletion. Publishing a plan or completion uses the
+server version to detect concurrent changes. Download the relevant screens before
+going offline; creating shared records and publishing drafts require a connection.
+
 ## Offline behavior
 
 Attendance writes commit locally **before** the app reports them saved. SQLCipher
@@ -42,6 +58,12 @@ and a foreground timer trigger synchronization. Automatic failures back off.
 Pending changes and rejected/conflicting changes are visible in the sync panel.
 Conflicts show local and server values; the user chooses the server version or
 explicitly resubmits against the current revision. Rejected edits do not loop.
+
+For an existing blocked edit, open مراجعة التعديلات and choose إعادة إرسال أحدث
+تعديلاتي or استخدام بيانات الخادم after reviewing the values. If the server
+changes again, review the refreshed version before retrying. Confirmation becomes
+available after the session's pending and blocked changes are resolved. Install
+updates over the existing app to preserve unsynchronized local changes.
 
 Previously downloaded data remains available without a network, including after
 a cold start. A workspace's first download, session creation, confirmation,
@@ -100,6 +122,7 @@ npm run typecheck
 npm run lint
 npm test -- --runInBand
 python scripts/emulator-smoke.py --serial emulator-5554 --agent-device /path/from/device_open/agent-device
+python scripts/features-smoke.py --serial emulator-5554 --agent-device /path/from/device_open/agent-device
 ```
 
 Open the emulator through T3 Code's `device_open` tool and pass its device-bound
@@ -117,4 +140,5 @@ or root file access on the Android userdebug emulator for standalone builds.
 The backend change alongside this client removes an incorrect dependency between
 attendance sync and Qur'an-progress tracking. Its tests cover receipt replay,
 revision conflicts, tenant isolation, and confirmed-session locking. It must be
-included when deploying the API; this work does not deploy either application.
+included when deploying the API. The API also supplies attendance row revisions
+in rosters and advances student Quran plans after accepted mobile Quran entries.
