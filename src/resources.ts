@@ -12,7 +12,10 @@ export function useResource<T>(engine: OfflineEngine, path: string | null) {
   useEffect(() => {
     let active = true;
     setError('');
-    if (!path) return;
+    if (!path) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     void engine
       .resource<T>(path)

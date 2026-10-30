@@ -1,6 +1,8 @@
 import { readDocument, writeDocument } from './offline/database';
 import { ApiError } from './api';
 import { absentFor, localDate } from './types';
+import { demoFinance } from './demo-finance';
+import type { DemoFinanceData } from './demo-finance';
 import { demoFeature } from './demo-features';
 import type { DemoFeatureData } from './demo-features';
 import { DEFAULT_EXCEL_EXPORT_TEMPLATES } from './excel-templates';
@@ -15,7 +17,7 @@ import type {
   User,
 } from './types';
 
-interface Workspace extends DemoFeatureData {
+interface Workspace extends DemoFeatureData, DemoFinanceData {
   settings: Settings;
   sessions: Session[];
   rosters: Record<number, Roster>;
@@ -233,7 +235,26 @@ export class DemoClient implements Gateway {
             })),
         ),
       );
-    const feature = demoFeature(w, route, method, body);
+    const finance = demoFinance(
+      w,
+      route,
+      method,
+      body,
+      new URLSearchParams(query),
+    );
+    if (finance.handled) {
+      await this.persist();
+      return (
+        finance.value === undefined ? undefined : clone(finance.value)
+      ) as T;
+    }
+    const feature = demoFeature(
+      w,
+      route,
+      method,
+      body,
+      new URLSearchParams(query),
+    );
     if (feature.handled) {
       await this.persist();
       return (

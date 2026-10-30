@@ -22,6 +22,7 @@ export function demoFeature(
   route: string,
   method: string,
   body: Record<string, any>,
+  params = new URLSearchParams(),
 ) {
   const first = Object.values(w.rosters)[0];
   w.sheikhs ||=
@@ -53,6 +54,139 @@ export function demoFeature(
   w.studentPlans ||= {};
   w.personalPlans ||= {};
   const result = (value: unknown) => ({ handled: true, value });
+  if (/^\/reports\/circle\/\d+\/(rate|student-stats)$/.test(route)) {
+    const matches = (date: string) =>
+      (!params.get('date_from') || date >= params.get('date_from')!) &&
+      (!params.get('date_to') || date <= params.get('date_to')!);
+    const students = w.people
+      .filter(
+        s =>
+          !params.get('sheikh_id') ||
+          s.sheikh?.id === Number(params.get('sheikh_id')),
+      )
+      .map(s => {
+        const counts: Record<string, number> = {};
+        Object.values(w.rosters)
+          .filter(r => r.is_confirmed && matches(r.date))
+          .forEach(r =>
+            r.sheikh_groups.forEach(g =>
+              g.students
+                .filter(st => st.id === s.id && st.attendance_id !== null)
+                .forEach(st => {
+                  counts[st.status] = (counts[st.status] || 0) + 1;
+                }),
+            ),
+          );
+        const total = Object.values(counts).reduce((a, b) => a + b, 0);
+        const present = counts[w.settings.present_status || 'حاضر'] || 0;
+        return {
+          student_id: s.id,
+          student_name: s.name,
+          sheikh_name: s.sheikh?.name || '',
+          total_sessions: total,
+          total_applicable_sessions: total,
+          status_counts: counts,
+          present,
+          absent: total - present,
+          excused: 0,
+          not_applicable: 0,
+          attendance_rate: total ? (present / total) * 100 : 0,
+        };
+      });
+    if (route.endsWith('/student-stats'))
+      return result({ circle_id: w.settings.id, scope: 'tenant', students });
+    const counts: Record<string, number> = {};
+    students.forEach(s =>
+      Object.entries(s.status_counts).forEach(([k, v]) => {
+        counts[k] = (counts[k] || 0) + v;
+      }),
+    );
+    const total = students.reduce((n, s) => n + s.total_sessions, 0),
+      present = students.reduce((n, s) => n + s.present, 0);
+    return result({
+      circle_id: w.settings.id,
+      scope: 'tenant',
+      total_attendance_records: total,
+      total_applicable_records: total,
+      status_counts: counts,
+      present,
+      absent: total - present,
+      excused: 0,
+      not_applicable: 0,
+      attendance_rate: total ? (present / total) * 100 : 0,
+    });
+  }
+  if (route === '/reports/quran-progress') {
+    const entries = w.progress.filter(e => {
+      const r = w.rosters[e.session_id],
+        student = w.people!.find(s => s.id === e.student_id);
+      return (
+        r &&
+        (!params.get('date_from') || r.date >= params.get('date_from')!) &&
+        (!params.get('date_to') || r.date <= params.get('date_to')!) &&
+        (!params.get('sheikh_id') ||
+          student?.sheikh?.id === Number(params.get('sheikh_id')))
+      );
+    });
+    const totals: Record<string, number> = {};
+    entries.forEach(e => {
+      totals[e.category] = (totals[e.category] || 0) + 1;
+    });
+    return result({
+      enabled: w.settings.progress_tracking_enabled,
+      category_totals: totals,
+      students: w.people.flatMap(s => {
+        const records = entries.filter(e => e.student_id === s.id);
+        return records.length
+          ? [
+              {
+                student_id: s.id,
+                student_name: s.name,
+                entries: records.length,
+                average_quality:
+                  records.reduce((n, e) => n + e.quality_score, 0) /
+                  records.length,
+                mistakes: records.reduce((n, e) => n + (e.mistakes || 0), 0),
+                latest_entry: records[records.length - 1],
+              },
+            ]
+          : [];
+      }),
+    });
+  }
+  if (route === '/audit-logs') {
+    const records = Array.from({ length: 30 }, (_, i) => ({
+      id: i + 1,
+      actor_user_id: 1,
+      actor_username: 'demo-admin',
+      action: i % 2 ? 'session.confirmed' : 'attendance.batch_updated',
+      details: JSON.stringify({ session: i + 1, records: 12 }),
+      created_at: new Date().toISOString(),
+    }));
+    const filtered = records.filter(
+      e =>
+        (!params.get('action') || e.action === params.get('action')) &&
+        (!params.get('actor_user_id') ||
+          e.actor_user_id === Number(params.get('actor_user_id'))) &&
+        (!params.get('query') ||
+          (e.details + e.actor_username).includes(params.get('query')!)) &&
+        (!params.get('date_from') ||
+          e.created_at.slice(0, 10) >= params.get('date_from')!) &&
+        (!params.get('date_to') ||
+          e.created_at.slice(0, 10) <= params.get('date_to')!),
+    );
+    const page = Number(params.get('page') || 1),
+      size = Number(params.get('page_size') || 25);
+    return result({
+      items: filtered.slice((page - 1) * size, page * size),
+      total: filtered.length,
+      page,
+      page_size: size,
+      pages: Math.max(1, Math.ceil(filtered.length / size)),
+      actions: ['session.confirmed', 'attendance.batch_updated'],
+      actors: [{ id: 1, username: 'demo-admin' }],
+    });
+  }
   if (route === '/student-categories') return result([]);
   if (route === '/student-custom-fields')
     return result({ fields: [], can_create: true });

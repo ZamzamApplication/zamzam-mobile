@@ -33,13 +33,13 @@ export const light = {
   dim: '#64748b',
 };
 export const dark = {
-  bg: '#0b1220',
-  card: '#111e30',
+  bg: '#0f172a',
+  card: '#1e293b',
   text: '#e2e8f0',
   strong: '#f8fafc',
   muted: '#a7b6c9',
-  border: '#294357',
-  field: '#17263b',
+  border: '#334155',
+  field: '#0f172a',
   cyan: '#67e8f9',
   pale: '#102f3e',
   active: '#164e63',
@@ -154,6 +154,7 @@ export type IconName =
   | 'plus'
   | 'wifi'
   | 'home'
+  | 'finance'
   | 'more';
 export function Icon({
   name,
@@ -166,6 +167,12 @@ export function Icon({
 }) {
   const t = useTheme();
   const paths: Record<IconName, React.ReactNode> = {
+    finance: (
+      <>
+        <Rect x="3" y="5" width="18" height="15" rx="2" />
+        <Path d="M3 9h18M15 13h6v4h-6z" />
+      </>
+    ),
     sessions: (
       <>
         <Rect x="4" y="5.5" width="16" height="14" rx="2" />
@@ -619,7 +626,7 @@ export const s = StyleSheet.create({
     includeFontPadding: false,
   },
   row: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10 },
-  page: { padding: 12, gap: 16, paddingBottom: 28 },
+  page: { padding: 16, gap: 16, paddingBottom: 28 },
   title: { fontSize: 24, lineHeight: 36 },
   heading: { fontSize: 18, lineHeight: 30 },
   card: {
@@ -719,3 +726,48 @@ export const s = StyleSheet.create({
     overflow: 'hidden',
   },
 });
+
+export function StatGrid({
+  items,
+}: {
+  items: { label: string; value: string; tone?: string; testID?: string }[];
+}) {
+  const t = useTheme();
+  return (
+    <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8 }}>
+      {items.map(item => (
+        <View
+          key={item.label}
+          style={{
+            flexGrow: 1,
+            flexBasis: '46%',
+            padding: 12,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: t.border,
+            backgroundColor: t.card,
+          }}
+        >
+          <Txt muted style={{ fontSize: 11 }}>
+            {item.label}
+          </Txt>
+          <Txt
+            bold
+            testID={item.testID}
+            style={{
+              fontSize: 16,
+              color:
+                item.tone === 'good'
+                  ? '#059669'
+                  : item.tone === 'bad'
+                  ? '#e11d48'
+                  : t.text,
+            }}
+          >
+            {item.value}
+          </Txt>
+        </View>
+      ))}
+    </View>
+  );
+}

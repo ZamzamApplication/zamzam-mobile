@@ -29,6 +29,7 @@ import {
 import { SettingsScreen } from './src/screens/Settings';
 import { HomeScreen } from './src/screens/Home';
 import { formatQuranRange } from './src/quran';
+import { FinanceScreen } from './src/screens/Finance';
 import { MoreScreen } from './src/screens/More';
 import type { MoreRoute } from './src/screens/More';
 import {
@@ -475,8 +476,8 @@ function Workspace({
   const { data, online, syncing, error } = useEngine(engine);
   const t = useTheme();
   const [page, setPage] = useState<
-    'home' | 'sessions' | 'attendance' | 'settings' | 'more'
-  >('home');
+    'home' | 'sessions' | 'attendance' | 'finance' | 'settings' | 'more'
+  >(data.user.role === 'auditor' ? 'finance' : 'home');
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [moreRoute, setMoreRoute] = useState<MoreRoute>(null);
   const [picker, setPicker] = useState(false);
@@ -585,6 +586,15 @@ function Workspace({
     { key: 'home', label: 'الرئيسية', icon: 'home' },
     { key: 'sessions', label: 'الحلقات', icon: 'sessions' },
     { key: 'attendance', label: 'سجل الحضور', icon: 'attendance' },
+    ...(['admin', 'super_admin', 'auditor'].includes(data.user.role)
+      ? [
+          {
+            key: 'finance' as const,
+            label: 'القسم المالي',
+            icon: 'finance' as const,
+          },
+        ]
+      : []),
     { key: 'settings', label: 'الإعدادات', icon: 'settings' },
     { key: 'more', label: 'المزيد', icon: 'more' },
   ];
@@ -603,7 +613,7 @@ function Workspace({
           },
         ]}
       >
-        <Txt bold style={{ fontSize: 23, color: t.cyan, marginLeft: 'auto' }}>
+        <Txt bold style={{ fontSize: 18, color: t.cyan, marginLeft: 'auto' }}>
           💧 زمزم
         </Txt>
         <Pressable
@@ -746,6 +756,14 @@ function Workspace({
             }}
             onReview={() => setSyncOpen(true)}
           />
+        ) : page === 'finance' ||
+          (page === 'home' && data.user.role === 'auditor') ? (
+          <FinanceScreen
+            engine={engine}
+            onBack={() =>
+              setPage(data.user.role === 'auditor' ? 'finance' : 'more')
+            }
+          />
         ) : page === 'home' ? (
           <HomeScreen
             engine={engine}
@@ -765,7 +783,12 @@ function Workspace({
           <MoreScreen
             engine={engine}
             route={moreRoute}
-            navigate={setMoreRoute}
+            navigate={route => {
+              if (route?.page === 'finance') {
+                setPage('finance');
+                setMoreRoute(null);
+              } else setMoreRoute(route);
+            }}
             onHome={() => setPage('home')}
             onSettings={() => setPage('settings')}
           />
@@ -787,44 +810,48 @@ function Workspace({
           },
         ]}
       >
-        {nav.map(item => (
-          <Pressable
-            key={item.key}
-            testID={`tab-${item.key}`}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: item.key === page }}
-            onPress={() => {
-              setSessionId(null);
-              setMoreRoute(null);
-              setPage(item.key);
-            }}
-            style={{
-              flex: 1,
-              minHeight: 55,
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 2,
-              borderRadius: 12,
-              backgroundColor: page === item.key ? t.active : t.card,
-            }}
-          >
-            <Icon
-              name={item.icon}
-              color={item.key === page ? t.cyan : t.muted}
-              size={22}
-            />
-            <Txt
-              bold
+        {nav
+          .filter(
+            item => data.user.role !== 'auditor' || item.key === 'finance',
+          )
+          .map(item => (
+            <Pressable
+              key={item.key}
+              testID={`tab-${item.key}`}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: item.key === page }}
+              onPress={() => {
+                setSessionId(null);
+                setMoreRoute(null);
+                setPage(item.key);
+              }}
               style={{
-                textAlign: 'center',
-                fontSize: 11,
-                color: item.key === page ? t.cyan : t.muted,
+                flex: 1,
+                minHeight: 55,
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 2,
+                borderRadius: 12,
+                backgroundColor: page === item.key ? t.active : t.card,
               }}
             >
-              {item.label}
-            </Txt>
-          </Pressable>
-        ))}
+              <Icon
+                name={item.icon}
+                color={item.key === page ? t.cyan : t.muted}
+                size={22}
+              />
+              <Txt
+                bold
+                style={{
+                  textAlign: 'center',
+                  fontSize: 11,
+                  color: item.key === page ? t.cyan : t.muted,
+                }}
+              >
+                {item.label}
+              </Txt>
+            </Pressable>
+          ))}
       </View>
       <Sheet
         visible={picker}

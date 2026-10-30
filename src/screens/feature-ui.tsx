@@ -1,14 +1,22 @@
-import React, { useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
+import React, { useState, useRef } from 'react';
+import {
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  View,
+} from 'react-native';
 import type { OfflineEngine } from '../offline/engine';
 import { useEngine } from '../hooks';
 import { errorMessage } from '../api';
-import { Button, Heading, Notice, s, Txt, useTheme } from '../ui';
+import { IconButton, Heading, Notice, s, Txt, useTheme } from '../ui';
 
 export function useAction() {
+  const running = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const run = async (action: () => Promise<void>) => {
+    if (running.current) return false;
+    running.current = true;
     setBusy(true);
     setError('');
     try {
@@ -18,6 +26,7 @@ export function useAction() {
       setError(errorMessage(e));
       return false;
     } finally {
+      running.current = false;
       setBusy(false);
     }
   };
@@ -75,8 +84,12 @@ export function FeaturePage({
         ) : undefined
       }
     >
-      <Button small secondary icon="back" title="رجوع" onPress={onBack} />
-      <Heading title={title} />
+      <View style={s.row}>
+        <View style={{ flex: 1 }}>
+          <Heading title={title} />
+        </View>
+        <IconButton name="back" label="رجوع" onPress={onBack} />
+      </View>
       {!online && (
         <Notice message="دون اتصال · تعرض البيانات المحفوظة، وتبقى مسوداتك على الجهاز حتى تنشرها عند الاتصال." />
       )}
