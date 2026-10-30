@@ -190,10 +190,15 @@ export class OfflineEngine {
           'تغيرت صلاحيات الحساب. راجع البيانات مع المدير قبل إعادة التسجيل.',
         );
       const id = failed.values.session_id;
+      const reviewed =
+        failed.server === undefined
+          ? this.view.data.attendance[key]
+          : failed.server;
       await this.loadRoster(id);
       const bootstrap = await this.request<Bootstrap>(
         '/sync/v1/bootstrap?history_days=90',
       );
+      let changedSinceReview = false;
       await this.mutate(data => {
         const latest = data.queue.filter(p => p.entity_key === key).at(-1);
         if (!latest) return;
@@ -219,10 +224,19 @@ export class OfflineEngine {
         if (current) data.attendance[key] = current;
         else delete data.attendance[key];
         const issue = data.queue.find(p => p.entity_key === key && p.issue)!;
+        if ((current?.revision || 0) !== (reviewed?.revision || 0)) {
+          issue.server = current || null;
+          changedSinceReview = true;
+          return;
+        }
         issue.issue = 'revision_conflict';
         issue.server = current || null;
         resolveMutation(data, key, true, this.client.deviceId);
       });
+      if (changedSinceReview)
+        throw new Error(
+          'تغيرت نسخة الخادم منذ آخر مراجعة. راجع النسخة المحدثة أدناه ثم اختر من جديد. تعديلاتك المحلية محفوظة.',
+        );
       await this.sync();
       return;
     }
