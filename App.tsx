@@ -603,7 +603,7 @@ function Workspace({
           },
         ]}
       >
-        <Txt bold style={{ fontSize: 23, color: t.cyan, marginLeft: 'auto' }}>
+        <Txt bold style={{ fontSize: 18, color: t.cyan, marginLeft: 'auto' }}>
           💧 زمزم
         </Txt>
         <Pressable

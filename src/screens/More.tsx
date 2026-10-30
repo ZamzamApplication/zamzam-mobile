@@ -9,9 +9,15 @@ import {
   StudentProgressScreen,
 } from './Quran';
 import { PlansScreen } from './Plans';
+import { FinanceScreen } from './Finance';
+import { ReportsScreen, AuditScreen } from './Reports';
+import { canManage } from '../types';
 import { useEngine } from '../hooks';
 export type MoreRoute = {
   page:
+    | 'finance'
+    | 'reports'
+    | 'audit'
     | 'people'
     | 'profile'
     | 'quran'
@@ -35,6 +41,18 @@ export function MoreScreen({
 }) {
   const { data } = useEngine(engine);
   const back = () => navigate(null);
+  if (route?.page === 'finance')
+    return <FinanceScreen engine={engine} onBack={back} />;
+  if (route?.page === 'reports')
+    return (
+      <ReportsScreen
+        engine={engine}
+        onBack={back}
+        onProfile={id => navigate({ page: 'profile', id })}
+      />
+    );
+  if (route?.page === 'audit')
+    return <AuditScreen engine={engine} onBack={back} />;
   if (route?.page === 'people')
     return (
       <PeopleScreen
@@ -79,6 +97,28 @@ export function MoreScreen({
     <FeaturePage engine={engine} title="المزيد" onBack={onHome}>
       <Card>
         <Txt bold>الطلاب والمتابعة</Txt>
+        {['admin', 'super_admin', 'auditor'].includes(data.user.role) && (
+          <Button
+            secondary
+            title="القسم المالي"
+            onPress={() => navigate({ page: 'finance' })}
+            testID="more-finance"
+          />
+        )}
+        <Button
+          secondary
+          title="التقارير والإحصاءات"
+          onPress={() => navigate({ page: 'reports' })}
+          testID="more-reports"
+        />
+        {canManage(data.user) && (
+          <Button
+            secondary
+            title="سجل العمليات"
+            onPress={() => navigate({ page: 'audit' })}
+            testID="more-audit"
+          />
+        )}
         <Button
           secondary
           title="الشيوخ والطلاب وملفاتهم"
@@ -105,7 +145,9 @@ export function MoreScreen({
               small
               secondary
               title={
-                key.startsWith('student-plan:')
+                key.startsWith('finance')
+                  ? 'مسودة مالية'
+                  : key.startsWith('student-plan:')
                   ? 'مسودة خطة طالب'
                   : key.startsWith('student:')
                   ? 'مسودة بيانات طالب'
@@ -118,7 +160,8 @@ export function MoreScreen({
                   : 'مسودة خطة أو إنجاز'
               }
               onPress={() => {
-                if (key.startsWith('student-plan:'))
+                if (key.startsWith('finance')) navigate({ page: 'finance' });
+                else if (key.startsWith('student-plan:'))
                   navigate({
                     page: 'student-plans',
                     id: Number(key.split(':')[1]),
