@@ -59,6 +59,12 @@ Pending changes and rejected/conflicting changes are visible in the sync panel.
 Conflicts show local and server values; the user chooses the server version or
 explicitly resubmits against the current revision. Rejected edits do not loop.
 
+For an existing blocked edit, open مراجعة التعديلات and choose إعادة إرسال أحدث
+تعديلاتي or استخدام بيانات الخادم after reviewing the values. If the server
+changes again, review the refreshed version before retrying. Confirmation becomes
+available after the session's pending and blocked changes are resolved. Install
+updates over the existing app to preserve unsynchronized local changes.
+
 Previously downloaded data remains available without a network, including after
 a cold start. A workspace's first download, session creation, confirmation,
 reopening, and publishing shared settings need a connection. Settings edits are
@@ -116,6 +122,7 @@ npm run typecheck
 npm run lint
 npm test -- --runInBand
 python scripts/emulator-smoke.py --serial emulator-5554 --agent-device /path/from/device_open/agent-device
+python scripts/features-smoke.py --serial emulator-5554 --agent-device /path/from/device_open/agent-device
 ```
 
 Open the emulator through T3 Code's `device_open` tool and pass its device-bound
@@ -133,4 +140,5 @@ or root file access on the Android userdebug emulator for standalone builds.
 The backend change alongside this client removes an incorrect dependency between
 attendance sync and Qur'an-progress tracking. Its tests cover receipt replay,
 revision conflicts, tenant isolation, and confirmed-session locking. It must be
-included when deploying the API; this work does not deploy either application.
+included when deploying the API. The API also supplies attendance row revisions
+in rosters and advances student Quran plans after accepted mobile Quran entries.

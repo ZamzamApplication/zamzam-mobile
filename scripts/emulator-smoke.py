@@ -43,6 +43,8 @@ def nodes():
 
 
 def match(node, needle):
+    if needle.endswith('*'):
+        return node.get('resource-id', '').startswith(needle[:-1])
     return node.get('resource-id') == needle or node.get('content-desc') == needle or node.get('text') == needle
 
 
@@ -59,7 +61,9 @@ def find(needle, timeout=40, scroll=False, editable=False):
             areas = [n for n in visible if n.get('kind') == 'scroll-area' and n.get('rect', {}).get('height', 0) > 150]
             if not areas: raise AssertionError('No visible scroll area')
             rect = max(areas, key=lambda n: n['rect']['height'])['rect']
-            device('scroll', 'down', '--pixels', '200', '--duration-ms', '600', '--settle')
+            x = round(rect['x'] + rect['width'] - 15)
+            y = round(rect['y'] + rect['height'] * .9)
+            device('gesture', 'pan', str(x), str(y), '0', '-220', '250')
             time.sleep(.25)
         else:
             time.sleep(.3)
