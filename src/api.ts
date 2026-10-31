@@ -113,6 +113,39 @@ export class ApiClient implements Gateway {
       return null;
     }
   }
+  static async publicRequest<T = unknown>(
+    path: string,
+    body?: unknown,
+    endpoint = API_URL,
+  ): Promise<T> {
+    const url = endpoint.trim().replace(/\/+$/, '');
+    if (
+      !/^https:\/\/[^/]+/.test(url) &&
+      !(
+        __DEV__ &&
+        /^http:\/\/(10\.0\.2\.2|127\.0\.0\.1|localhost)(:\d+)?$/.test(url)
+      )
+    )
+      throw new Error('يجب استخدام عنوان خادم HTTPS صالح.');
+    const client = new ApiClient({
+      endpoint: url,
+      device: '',
+      tenant: null,
+      access_token: '',
+      refresh_token: '',
+      expiresAt: 0,
+    });
+    return client.raw<T>(
+      path,
+      {
+        method: body === undefined ? 'GET' : 'POST',
+        credentials: 'omit',
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      },
+      null,
+      false,
+    );
+  }
   static async login(username: string, password: string, endpoint = API_URL) {
     const url = endpoint.trim().replace(/\/+$/, '');
     if (
@@ -180,7 +213,9 @@ export class ApiClient implements Gateway {
         ...options,
         signal: controller.signal,
         headers: {
-          'Content-Type': 'application/json',
+          ...(options.body instanceof FormData
+            ? {}
+            : { 'Content-Type': 'application/json' }),
           ...(authenticated
             ? { Authorization: `Bearer ${this.credentials.access_token}` }
             : {}),

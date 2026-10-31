@@ -5,6 +5,7 @@ import {
   AppState,
   BackHandler,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -29,8 +30,10 @@ import {
 import { SettingsScreen } from './src/screens/Settings';
 import { HomeScreen } from './src/screens/Home';
 import { formatQuranRange } from './src/quran';
+import { SignupFlow, InvitationFlow } from './src/screens/Registration';
 import { FinanceScreen } from './src/screens/Finance';
 import { MoreScreen } from './src/screens/More';
+import { RegistrationNotification } from './src/screens/StudentRegistration';
 import type { MoreRoute } from './src/screens/More';
 import {
   Button,
@@ -51,8 +54,20 @@ import {
 import type { IconName } from './src/ui';
 
 type Session = { client: Gateway; user: User };
-function Login({ onReady }: { onReady: (session: Session) => Promise<void> }) {
+function Login({
+  onReady,
+  initialInvite,
+  onInviteClose,
+}: {
+  onReady: (session: Session) => Promise<void>;
+  initialInvite?: string;
+  onInviteClose: () => void;
+}) {
   const t = useTheme();
+  const [mode, setMode] = useState(initialInvite ? 'invite' : 'login');
+  useEffect(() => {
+    if (initialInvite) setMode('invite');
+  }, [initialInvite]);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [endpoint, setEndpoint] = useState(API_URL);
@@ -87,6 +102,26 @@ function Login({ onReady }: { onReady: (session: Session) => Promise<void> }) {
       setBusy(false);
     }
   };
+  if (mode === 'signup')
+    return <SignupFlow endpoint={endpoint} onBack={() => setMode('login')} />;
+  if (mode === 'invite')
+    return (
+      <ScrollView contentContainerStyle={s.page}>
+        <InvitationFlow
+          initialLink={initialInvite}
+          endpoint={endpoint}
+          onBack={() => {
+            setMode('login');
+            onInviteClose();
+          }}
+          onExisting={() => setMode('login')}
+          onReady={async next => {
+            onInviteClose();
+            await onReady(next);
+          }}
+        />
+      </ScrollView>
+    );
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -244,6 +279,18 @@ function Login({ onReady }: { onReady: (session: Session) => Promise<void> }) {
             }}
             testID="demo-start"
           />
+          <Button
+            secondary
+            title="إنشاء حساب وتحفيظ جديد"
+            onPress={() => setMode('signup')}
+            testID="signup-open"
+          />
+          <Button
+            secondary
+            title="الانضمام بدعوة"
+            onPress={() => setMode('invite')}
+            testID="invite-open"
+          />
           <Txt muted style={{ fontSize: 11, textAlign: 'center' }}>
             التجربة تستخدم بيانات محلية مستقلة عن حسابك الحقيقي.
           </Txt>
@@ -301,6 +348,8 @@ function SyncPanel({
     invalid_sheikh: 'الشيخ المختار غير متاح.',
     session_progress_disabled:
       'رُفض هذا التعديل قبل تحديث الخادم. يمكنك الآن إعادة إرساله بعد مراجعة بياناته.',
+    session_archived:
+      'الحلقة مؤرشفة. استعدها من إدارة الحلقات قبل إعادة إرسال التعديل.',
     scope_changed: 'تغيرت صلاحيات الحساب. راجع البيانات مع المدير.',
   };
   return (
@@ -737,6 +786,14 @@ function Workspace({
           />
         </View>
       ) : null}
+      <RegistrationNotification
+        engine={engine}
+        onOpen={() => {
+          setSessionId(null);
+          setPage('more');
+          setMoreRoute({ page: 'registration' });
+        }}
+      />
       <View style={{ flex: 1 }}>
         {sessionId !== null ? (
           <AttendanceScreen
@@ -791,6 +848,11 @@ function Workspace({
             }}
             onHome={() => setPage('home')}
             onSettings={() => setPage('settings')}
+            onJoined={onTenant}
+            onSession={id => {
+              setSessionId(id);
+              setPage('sessions');
+            }}
           />
         ) : page === 'attendance' ? (
           <RecordsScreen engine={engine} onOpen={open} />
@@ -995,6 +1057,17 @@ function OfflineWorkspace({
 }
 
 export default function App() {
+  const [inviteLink, setInviteLink] = useState('');
+  useEffect(() => {
+    const accept = (url: string | null | undefined) => {
+      if (url && /^(https:\/\/[^/]+\/invite\/|zamzam:\/\/invite\/)/.test(url))
+        setInviteLink(url);
+    };
+    void Linking.getInitialURL().then(accept);
+    const listener = Linking.addEventListener('url', e => accept(e.url));
+    return () => listener.remove();
+  }, []);
+
   const system = useColorScheme();
   const [isDark, setDark] = useState(system === 'dark');
   const [session, setSession] = useState<Session | null>(null);
@@ -1089,9 +1162,30 @@ export default function App() {
                   <Notice message={startupError} error />
                 </View>
               ) : null}
-              <Login onReady={ready} />
+              <Login
+                onReady={ready}
+                initialInvite={inviteLink}
+                onInviteClose={() => setInviteLink('')}
+              />
             </View>
           )}
+          <Sheet
+            visible={!!inviteLink && !!session}
+            title="دعوة تحفيظ"
+            onClose={() => setInviteLink('')}
+          >
+            {session && (
+              <InvitationFlow
+                client={session.client}
+                initialLink={inviteLink}
+                onBack={() => setInviteLink('')}
+                onJoined={user => {
+                  setSession({ ...session, user });
+                  setInviteLink('');
+                }}
+              />
+            )}
+          </Sheet>
         </SafeAreaView>
       </Theme.Provider>
     </SafeAreaProvider>

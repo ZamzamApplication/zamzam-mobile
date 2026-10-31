@@ -146,10 +146,18 @@ function SectionCard({
   );
 }
 
-export function SettingsScreen({ engine }: { engine: OfflineEngine }) {
+export function SettingsScreen({
+  engine,
+  initialSection,
+}: {
+  engine: OfflineEngine;
+  initialSection?: Section;
+}) {
   const { data } = useEngine(engine);
   const t = useTheme();
-  const [section, setSection] = useState<Section | null>(null);
+  const [section, setSection] = useState<Section | null>(
+    initialSection || null,
+  );
   useEffect(() => {
     if (!section) return;
     const listener = BackHandler.addEventListener('hardwareBackPress', () => {

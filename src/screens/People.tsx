@@ -1,3 +1,4 @@
+import { StudentPhoto, DeleteStudent, DeleteSheikh } from './StudentManagement';
 import React, { useState } from 'react';
 import { Alert, Linking, Pressable, View } from 'react-native';
 import type { OfflineEngine } from '../offline/engine';
@@ -239,6 +240,11 @@ export function PeopleScreen({
                   secondary
                   title="تعديل الشيخ"
                   onPress={() => setEditSheikh(sheikh)}
+                />
+                <DeleteSheikh
+                  engine={engine}
+                  id={sheikh.id}
+                  onDeleted={reload}
                 />
               </Card>
             ))}
@@ -643,6 +649,17 @@ export function ProfileScreen({
       error={action.error || resource.error}
       fetchedAt={resource.fetchedAt}
     >
+      {admin && profile && (
+        <StudentPhoto engine={engine} id={id} reload={resource.reload} />
+      )}
+      {admin && profile && (
+        <DeleteStudent
+          engine={engine}
+          id={id}
+          name={profile.name}
+          onDeleted={onBack}
+        />
+      )}
       {profile && (
         <>
           <Card>

@@ -68,10 +68,12 @@ export interface Session {
   circle_id: number;
   circle_name?: string;
   is_confirmed: boolean;
+  archived_at?: string | null;
   quran_progress_enabled: boolean;
   version?: number;
   status?: string;
   student_count?: number;
+  explicit_membership?: boolean;
 }
 export interface DashboardSummary {
   tahfiz_name: string;
@@ -93,6 +95,7 @@ export interface Student {
   revision?: number;
 }
 export interface Roster extends Omit<Session, 'id'> {
+  explicit_membership?: boolean;
   session_id: number;
   version: number;
   sheikh_groups: {
