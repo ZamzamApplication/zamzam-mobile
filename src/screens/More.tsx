@@ -100,12 +100,18 @@ export function MoreScreen({
         onBack={back}
         onPeople={() => navigate({ page: 'people' })}
         onInvitations={() => navigate({ page: 'invitations' })}
+        onRegistration={() => navigate({ page: 'registration' })}
       />
     );
   if (route?.page === 'invitations')
     return <SettingsScreen engine={engine} initialSection="invitations" />;
   if (route?.page === 'registration')
-    return <RegistrationScreen engine={engine} onBack={back} />;
+    return (
+      <RegistrationScreen
+        engine={engine}
+        onBack={() => navigate({ page: 'administration' })}
+      />
+    );
   if (route?.page === 'finance')
     return <FinanceScreen engine={engine} onBack={back} />;
   if (route?.page === 'reports')
@@ -184,17 +190,10 @@ export function MoreScreen({
             testID="more-session-management"
           />
         )}
-        {['admin', 'super_admin'].includes(data.user.role) && (
-          <Button
-            secondary
-            title="التسجيل العام وطلبات الطلاب"
-            onPress={() => navigate({ page: 'registration' })}
-          />
-        )}
         {canManage(data.user) && (
           <Button
             secondary
-            title="الإدارة — المستخدمين والتصنيفات والحقول"
+            title="الإدارة"
             onPress={() => navigate({ page: 'administration' })}
             testID="more-administration"
           />

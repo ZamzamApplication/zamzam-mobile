@@ -46,11 +46,13 @@ export function AdministrationScreen({
   engine,
   onBack,
   onInvitations,
+  onRegistration,
   onPeople,
 }: {
   engine: OfflineEngine;
   onBack: () => void;
   onInvitations: () => void;
+  onRegistration: () => void;
   onPeople: () => void;
 }) {
   const { data, online } = useEngine(engine),
@@ -111,6 +113,12 @@ export function AdministrationScreen({
               onPress={onInvitations}
             />
           </View>
+          <Button
+            secondary
+            title="تسجيل الطلاب والطلبات العامة"
+            onPress={onRegistration}
+            testID="admin-student-registration"
+          />
           <Select
             label="القسم"
             value={tab}
