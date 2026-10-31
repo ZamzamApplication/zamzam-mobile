@@ -88,6 +88,8 @@ export function queueAttendance(
   deviceId: string,
 ) {
   const roster = data.rosters[sessionId];
+  if (roster?.archived_at)
+    throw new Error('الحلقة مؤرشفة. استعدها قبل تسجيل الحضور.');
   if (!roster || roster.is_confirmed)
     throw new Error('الحلقة مؤكدة أو غير متاحة على الجهاز.');
   for (const update of updates) {

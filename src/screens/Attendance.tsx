@@ -61,6 +61,7 @@ export function SessionsScreen({
         session.date <= monthRange(month, data.settings.month_start_day).end),
   );
   const rows = monthly
+    .filter(s => !s.archived_at)
     .filter(
       session =>
         filter === 'all' ||
