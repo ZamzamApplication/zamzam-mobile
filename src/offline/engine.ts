@@ -162,6 +162,7 @@ export class OfflineEngine {
         !data.settings.progress_tracking_enabled ||
         !roster?.quran_progress_enabled ||
         roster.is_confirmed ||
+        !!roster.archived_at ||
         data.user.role === 'auditor'
       )
         throw new Error('متابعة القرآن غير متاحة أو الحلقة مؤكدة.');
@@ -268,7 +269,7 @@ export class OfflineEngine {
         const latest = data.queue.filter(p => p.entity_key === key).at(-1);
         if (!latest) return;
         const roster = data.rosters[id];
-        if (roster.is_confirmed)
+        if (roster.is_confirmed || roster.archived_at)
           throw new Error(
             'الحلقة مؤكدة. أعد فتحها أولاً أو استخدم نسخة الخادم.',
           );
@@ -350,6 +351,21 @@ export class OfflineEngine {
         return;
       if (value === undefined) delete data.formDrafts[key];
       else data.formDrafts[key] = value;
+    });
+  }
+  async uploadStudentPhoto(
+    id: number,
+    file: { uri: string; name: string; type: string },
+  ) {
+    if (!this.view.online)
+      throw new Error('رفع الصورة يحتاج إلى اتصال بالإنترنت.');
+    if (this.client.demo)
+      return this.publish(`/students/${id}/upload-pic`, { uri: file.uri });
+    const form = new FormData();
+    form.append('file', file as unknown as Blob);
+    return this.request(`/students/${id}/upload-pic`, {
+      method: 'POST',
+      body: form,
     });
   }
   async publish<T>(path: string, body?: unknown, method = 'POST'): Promise<T> {

@@ -127,3 +127,41 @@ test('normalizes validation arrays and denies non-HTTPS production endpoints', a
     ApiClient.login('admin', 'password', 'http://example.com'),
   ).rejects.toThrow('HTTPS');
 });
+
+test('public signup requests never attach credentials or persist an authentication session', async () => {
+  globalThis.fetch = jest.fn(async () => response(200, { status: 'pending' }));
+  await ApiClient.publicRequest('/auth/signup', {
+    username: 'new-account',
+    password: 'example-only',
+  });
+  const options = (fetch as jest.Mock).mock.calls[0][1];
+  expect(options.credentials).toBe('omit');
+  expect(options.headers.Authorization).toBeUndefined();
+  expect(options.headers['X-Tahfiz-ID']).toBeUndefined();
+  expect(Keychain.setGenericPassword).not.toHaveBeenCalled();
+});
+test('photo multipart upload lets the native transport set its boundary', async () => {
+  globalThis.fetch = jest.fn(async url =>
+    String(url).endsWith('/auth/login')
+      ? response(200, {
+          access_token: 'access',
+          refresh_token: 'refresh',
+          expires_in: 3600,
+        })
+      : response(200, {}),
+  );
+  const client = await ApiClient.login('admin', 'password');
+  const form = new FormData();
+  form.append('file', {
+    uri: 'file:///test.jpg',
+    type: 'image/jpeg',
+    name: 'test.jpg',
+  } as unknown as Blob);
+  await client.request('/students/1/upload-pic', {
+    method: 'POST',
+    body: form,
+  });
+  const options = (fetch as jest.Mock).mock.calls.at(-1)[1];
+  expect(options.headers['Content-Type']).toBeUndefined();
+  expect(options.headers.Authorization).toBe('Bearer access');
+});

@@ -9,12 +9,28 @@ import {
   StudentProgressScreen,
 } from './Quran';
 import { PlansScreen } from './Plans';
+import { InvitationFlow, CreateTahfizFlow } from './Registration';
+import type { User } from '../types';
+import {
+  AdvancedAttendanceScreen,
+  WarningDeliveryScreen,
+} from './AttendanceTools';
+import { SessionManagementScreen } from './SessionManagement';
+import { AdministrationScreen } from './Administration';
+import { SettingsScreen } from './Settings';
 import { FinanceScreen } from './Finance';
 import { ReportsScreen, AuditScreen } from './Reports';
 import { canManage } from '../types';
 import { useEngine } from '../hooks';
 export type MoreRoute = {
   page:
+    | 'attendance-filters'
+    | 'warnings'
+    | 'session-management'
+    | 'join'
+    | 'create-tahfiz'
+    | 'administration'
+    | 'invitations'
     | 'finance'
     | 'reports'
     | 'audit'
@@ -32,15 +48,60 @@ export function MoreScreen({
   navigate,
   onHome,
   onSettings,
+  onJoined,
+  onSession,
 }: {
   engine: OfflineEngine;
   route: MoreRoute;
   navigate: (v: MoreRoute) => void;
   onHome: () => void;
   onSettings: () => void;
+  onJoined: (user: User) => void;
+  onSession: (id: number) => void;
 }) {
   const { data } = useEngine(engine);
   const back = () => navigate(null);
+  if (route?.page === 'attendance-filters')
+    return (
+      <AdvancedAttendanceScreen
+        engine={engine}
+        onBack={back}
+        onProfile={id => navigate({ page: 'profile', id })}
+      />
+    );
+  if (route?.page === 'warnings')
+    return <WarningDeliveryScreen engine={engine} onBack={back} />;
+  if (route?.page === 'session-management')
+    return (
+      <SessionManagementScreen
+        engine={engine}
+        onBack={back}
+        onOpen={onSession}
+      />
+    );
+  if (route?.page === 'join')
+    return (
+      <FeaturePage engine={engine} title="الانضمام إلى تحفيظ" onBack={back}>
+        <InvitationFlow
+          client={engine.client}
+          onBack={back}
+          onJoined={onJoined}
+        />
+      </FeaturePage>
+    );
+  if (route?.page === 'create-tahfiz')
+    return <CreateTahfizFlow engine={engine} onBack={back} />;
+  if (route?.page === 'administration')
+    return (
+      <AdministrationScreen
+        engine={engine}
+        onBack={back}
+        onPeople={() => navigate({ page: 'people' })}
+        onInvitations={() => navigate({ page: 'invitations' })}
+      />
+    );
+  if (route?.page === 'invitations')
+    return <SettingsScreen engine={engine} initialSection="invitations" />;
   if (route?.page === 'finance')
     return <FinanceScreen engine={engine} onBack={back} />;
   if (route?.page === 'reports')
@@ -97,6 +158,36 @@ export function MoreScreen({
     <FeaturePage engine={engine} title="المزيد" onBack={onHome}>
       <Card>
         <Txt bold>الطلاب والمتابعة</Txt>
+        <Button
+          secondary
+          title="تصفية سجل الحضور المتقدمة"
+          onPress={() => navigate({ page: 'attendance-filters' })}
+          testID="more-attendance-filters"
+        />
+        {canManage(data.user) && (
+          <Button
+            secondary
+            title="الإنذارات والإرسال الجماعي"
+            onPress={() => navigate({ page: 'warnings' })}
+            testID="more-warnings"
+          />
+        )}
+        {canManage(data.user) && (
+          <Button
+            secondary
+            title="إدارة الحلقات والأعضاء والأرشيف"
+            onPress={() => navigate({ page: 'session-management' })}
+            testID="more-session-management"
+          />
+        )}
+        {canManage(data.user) && (
+          <Button
+            secondary
+            title="الإدارة — المستخدمين والتصنيفات والحقول"
+            onPress={() => navigate({ page: 'administration' })}
+            testID="more-administration"
+          />
+        )}
         {['admin', 'super_admin', 'auditor'].includes(data.user.role) && (
           <Button
             secondary
@@ -189,6 +280,18 @@ export function MoreScreen({
       )}
       <Card>
         <Txt bold>خططي</Txt>
+        <Button
+          secondary
+          title="الانضمام إلى تحفيظ بدعوة"
+          onPress={() => navigate({ page: 'join' })}
+          testID="more-join"
+        />
+        <Button
+          secondary
+          title="إنشاء تحفيظ جديد"
+          onPress={() => navigate({ page: 'create-tahfiz' })}
+          testID="more-create-tahfiz"
+        />
         <Button
           secondary
           title="خطط الحفظ والمراجعة"

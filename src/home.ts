@@ -7,7 +7,7 @@ export function homeAttention(data: WorkspaceData, today = localDate()) {
   );
   data.sessions.forEach(item => sessions.set(item.id, item));
   const pending = [...sessions.values()]
-    .filter(item => !item.is_confirmed)
+    .filter(item => !item.is_confirmed && !item.archived_at)
     .sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id);
   return {
     pending,

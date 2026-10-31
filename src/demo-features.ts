@@ -1,10 +1,12 @@
+import { demoManagement } from './demo-management';
+import type { DemoManagementData } from './demo-management';
 import type { StudentInfo, SheikhInfo, StudentQuranPlan } from './domain-types';
 import type { SavedPlan } from './plan-model';
 import type { QuranRecord } from './offline/quran';
 import type { Roster, Session, Settings } from './types';
 import { localDate, uid } from './types';
 import { ApiError } from './api';
-export interface DemoFeatureData {
+export interface DemoFeatureData extends DemoManagementData {
   people?: StudentInfo[];
   sheikhs?: SheikhInfo[];
   progress?: QuranRecord[];
@@ -187,6 +189,8 @@ export function demoFeature(
       actors: [{ id: 1, username: 'demo-admin' }],
     });
   }
+  const management = demoManagement(w, route, method, body, params);
+  if (management.handled) return management;
   if (route === '/student-categories') return result([]);
   if (route === '/student-custom-fields')
     return result({ fields: [], can_create: true });
