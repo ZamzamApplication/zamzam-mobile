@@ -1,4 +1,7 @@
 const ACTION_LABELS: Record<string, string> = {
+  'student_registration.form_saved': 'حفظ نموذج تسجيل الطلاب',
+  'student_registration.approved': 'قبول طلب تسجيل طالب',
+  'student_registration.rejected': 'رفض طلب تسجيل طالب',
   'trip.created': 'إنشاء رحلة',
   'trip.participants_added': 'إضافة مشاركين لرحلة',
   'trip.participant_updated': 'تعديل مشاركة أو سداد رحلة',

@@ -37,6 +37,7 @@ import {
 } from './src/screens/Registration';
 import { FinanceScreen } from './src/screens/Finance';
 import { MoreScreen } from './src/screens/More';
+import { RegistrationNotification } from './src/screens/StudentRegistration';
 import type { MoreRoute } from './src/screens/More';
 import {
   Button,
@@ -789,6 +790,14 @@ function Workspace({
           />
         </View>
       ) : null}
+      <RegistrationNotification
+        engine={engine}
+        onOpen={() => {
+          setSessionId(null);
+          setPage('more');
+          setMoreRoute({ page: 'registration' });
+        }}
+      />
       <View style={{ flex: 1 }}>
         {sessionId !== null ? (
           <AttendanceScreen

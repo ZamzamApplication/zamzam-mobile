@@ -1,4 +1,5 @@
 import React from 'react';
+import { RegistrationScreen } from './StudentRegistration';
 import type { OfflineEngine } from '../offline/engine';
 import { Button, Card, Txt } from '../ui';
 import { FeaturePage } from './feature-ui';
@@ -31,6 +32,7 @@ export type MoreRoute = {
     | 'create-tahfiz'
     | 'administration'
     | 'invitations'
+    | 'registration'
     | 'finance'
     | 'reports'
     | 'audit'
@@ -98,10 +100,18 @@ export function MoreScreen({
         onBack={back}
         onPeople={() => navigate({ page: 'people' })}
         onInvitations={() => navigate({ page: 'invitations' })}
+        onRegistration={() => navigate({ page: 'registration' })}
       />
     );
   if (route?.page === 'invitations')
     return <SettingsScreen engine={engine} initialSection="invitations" />;
+  if (route?.page === 'registration')
+    return (
+      <RegistrationScreen
+        engine={engine}
+        onBack={() => navigate({ page: 'administration' })}
+      />
+    );
   if (route?.page === 'finance')
     return <FinanceScreen engine={engine} onBack={back} />;
   if (route?.page === 'reports')
@@ -183,7 +193,7 @@ export function MoreScreen({
         {canManage(data.user) && (
           <Button
             secondary
-            title="الإدارة — المستخدمين والتصنيفات والحقول"
+            title="الإدارة"
             onPress={() => navigate({ page: 'administration' })}
             testID="more-administration"
           />

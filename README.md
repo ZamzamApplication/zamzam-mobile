@@ -98,7 +98,7 @@ device session through login. Logged-in users can request another Tahfiz without
 leaving their current workspace. iOS linking/photo support is configured but needs
 native verification on macOS.
 
-This branch excludes the separate student-intake/QR registration work.
+Student-intake/QR registration is maintained by the separate thread and is integrated through master.
 
 ## Offline behavior
 
