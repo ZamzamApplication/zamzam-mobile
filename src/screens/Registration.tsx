@@ -455,3 +455,58 @@ export function CreateTahfizFlow({
     </ScrollView>
   );
 }
+
+export function PendingApproval({
+  client,
+  user,
+  onUser,
+  onLogout,
+}: {
+  client: Gateway;
+  user: User;
+  onUser: (user: User) => void;
+  onLogout: () => Promise<void>;
+}) {
+  const action = useAction();
+  return (
+    <ScrollView contentContainerStyle={s.page}>
+      <Heading title="التحفيظ بانتظار المراجعة" />
+      <Card>
+        <Txt bold>{user.tahfiz?.name}</Txt>
+        <Notice message="حسابك جاهز، والتحفيظ بانتظار موافقة إدارة المنصة. لن تحتاج إلى إنشاء الحساب مرة أخرى." />
+        <Button
+          title="تحديث حالة الطلب"
+          busy={action.busy}
+          onPress={() => {
+            void action.run(async () => {
+              if (!(client instanceof ApiClient)) return;
+              onUser(await client.loadUser());
+            });
+          }}
+        />
+        {user.memberships
+          ?.filter(m => m.tahfiz_status === 'active')
+          .map(m => (
+            <Button
+              key={m.id}
+              secondary
+              title={`فتح ${m.tahfiz_name}`}
+              onPress={() => {
+                void action.run(async () => {
+                  onUser(await client.switchTenant(m.tahfiz_id));
+                });
+              }}
+            />
+          ))}
+        <Button
+          secondary
+          title="تسجيل الخروج"
+          onPress={() => {
+            void onLogout();
+          }}
+        />
+        {action.error && <Notice error message={action.error} />}
+      </Card>
+    </ScrollView>
+  );
+}

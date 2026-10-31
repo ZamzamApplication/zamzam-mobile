@@ -30,7 +30,11 @@ import {
 import { SettingsScreen } from './src/screens/Settings';
 import { HomeScreen } from './src/screens/Home';
 import { formatQuranRange } from './src/quran';
-import { SignupFlow, InvitationFlow } from './src/screens/Registration';
+import {
+  SignupFlow,
+  InvitationFlow,
+  PendingApproval,
+} from './src/screens/Registration';
 import { FinanceScreen } from './src/screens/Finance';
 import { MoreScreen } from './src/screens/More';
 import { RegistrationNotification } from './src/screens/StudentRegistration';
@@ -835,7 +839,14 @@ function Workspace({
             }}
           />
         ) : page === 'sessions' ? (
-          <SessionsScreen engine={engine} onOpen={open} />
+          <SessionsScreen
+            engine={engine}
+            onOpen={open}
+            onManage={() => {
+              setMoreRoute({ page: 'session-management' });
+              setPage('more');
+            }}
+          />
         ) : page === 'more' ? (
           <MoreScreen
             engine={engine}
@@ -1146,6 +1157,13 @@ export default function App() {
             <View style={{ flex: 1, justifyContent: 'center' }}>
               <ActivityIndicator color={theme.cyan} size="large" />
             </View>
+          ) : session?.user.tahfiz?.status === 'pending' ? (
+            <PendingApproval
+              client={session.client}
+              user={session.user}
+              onUser={user => setSession({ ...session, user })}
+              onLogout={logout}
+            />
           ) : session ? (
             <OfflineWorkspace
               key={`${session.client.accountKey}:${session.user.tahfiz_id}`}

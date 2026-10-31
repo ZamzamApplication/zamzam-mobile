@@ -510,7 +510,9 @@ export class DemoClient implements Gateway {
         status: 'draft',
         quran_progress_enabled: true,
         version: 1,
-        student_count: 6,
+        archived_at: null,
+        explicit_membership: Array.isArray(body.student_ids),
+        student_count: body.student_ids?.length ?? 6,
       };
       const roster: Roster = {
         ...sample,
@@ -518,11 +520,19 @@ export class DemoClient implements Gateway {
         session_id: id,
         version: 1,
       };
+      if (Array.isArray(body.student_ids))
+        roster.sheikh_groups.forEach(g => {
+          g.students = g.students.filter(st =>
+            body.student_ids.includes(st.id),
+          );
+        });
       roster.sheikh_groups.forEach(g =>
         g.students.forEach(s => {
           s.status = absentFor(w.settings);
           s.notes = '';
-          s.attendance_id = null;
+          s.attendance_id = Array.isArray(body.student_ids)
+            ? id * 10000 + s.id
+            : null;
         }),
       );
       w.rosters[id] = roster;

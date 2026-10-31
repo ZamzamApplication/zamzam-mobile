@@ -58,10 +58,47 @@ pagination. Every applied filter/page has its own encrypted cache key, so a fail
 request cannot label an older result with a new period.
 
 Remaining website parity work includes Excel file export, financial category
-administration and historical period generation, trips, user/access management,
-public signup/invite flows, feedback/platform administration, and additional
-student/session management actions. Receipt sharing currently uses native text
+administration and historical period generation, trips, and feedback/platform
+administration. Receipt sharing currently uses native text
 sharing. Existing server permissions remain authoritative.
+
+## Administration, students, sessions, and registration
+
+The administrative screens follow the website's portrait forms, cards, labels,
+and confirmation dialogs. Manage tenant users (admin, sheikh, auditor), link
+sheikh accounts, reset passwords, and revoke tenant access. Passwords remain in
+component memory and are excluded from encrypted drafts. Owner/last-admin and
+server authorization checks remain authoritative.
+
+Student management includes native photo selection/upload, explicit history
+choices on student deletion, a per-student resolution preview before sheikh
+removal, categories, and custom-field creation/editing/deactivation. Photo upload
+uses the [native image picker](https://github.com/react-native-image-picker/react-native-image-picker)
+and multipart transport; it operates on an existing student, so upload failure
+cannot create a duplicate student.
+
+Session administration supports selective membership, independent date/name
+publishing, and audited archive/recovery. Pending local edits must be synchronized
+before changing membership or archiving. Archived sessions preserve history and
+reject attendance/Quran changes until recovered. Date/name, membership, archive,
+and recovery use the current session version. Archive support requires API PR #11;
+the dashboard follow-up excludes archived sessions from pending work.
+
+Advanced attendance filters support grouped AND/OR conditions, session/weekday
+rules, and shared saved filters with permission checks and schema validation.
+Weekday `is_not` requires every available record to differ; missing records do not
+match. Bulk warning delivery confirms selected IDs and retains failed selections
+with individual reasons. Previously sent warnings are not automatically resent.
+
+Signup uses the website's initial Tahfiz settings and pending-approval state.
+Invitations can be pasted, opened with `zamzam://invite/<token>`, or opened from the
+website invitation path where Android link handling is enabled. Existing accounts
+accept membership explicitly; new accounts register once and establish a native
+device session through login. Logged-in users can request another Tahfiz without
+leaving their current workspace. iOS linking/photo support is configured but needs
+native verification on macOS.
+
+Student-intake/QR registration is maintained by the separate thread and is integrated through master.
 
 ## Offline behavior
 

@@ -41,9 +41,11 @@ import {
 export function SessionsScreen({
   engine,
   onOpen,
+  onManage,
 }: {
   engine: OfflineEngine;
   onOpen: (id: number) => void;
+  onManage?: () => void;
 }) {
   const { data, online, syncing } = useEngine(engine);
   const t = useTheme();
@@ -130,7 +132,11 @@ export function SessionsScreen({
                   title="إضافة حلقة"
                   icon="plus"
                   disabled={!online}
-                  onPress={() => setCreate(true)}
+                  onPress={() =>
+                    data.settings.multiple_sessions_per_day_enabled && onManage
+                      ? onManage()
+                      : setCreate(true)
+                  }
                   testID="create-session"
                 />
               ) : undefined
