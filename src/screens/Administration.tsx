@@ -48,12 +48,14 @@ export function AdministrationScreen({
   onInvitations,
   onRegistration,
   onPeople,
+  onAudit,
 }: {
   engine: OfflineEngine;
   onBack: () => void;
   onInvitations: () => void;
   onRegistration: () => void;
   onPeople: () => void;
+  onAudit: () => void;
 }) {
   const { data, online } = useEngine(engine),
     allowed = canManage(data.user);
@@ -104,6 +106,7 @@ export function AdministrationScreen({
               style={{ flex: 1 }}
               secondary
               title="الشيوخ والطلاب"
+              testID="admin-people"
               onPress={onPeople}
             />
             <Button
@@ -118,6 +121,12 @@ export function AdministrationScreen({
             title="تسجيل الطلاب والطلبات العامة"
             onPress={onRegistration}
             testID="admin-student-registration"
+          />
+          <Button
+            secondary
+            title="سجل العمليات"
+            onPress={onAudit}
+            testID="admin-audit"
           />
           <Select
             label="القسم"

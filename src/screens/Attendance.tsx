@@ -614,7 +614,12 @@ export function AttendanceScreen({
         )}`}
       />
       {onQuran && data.settings.progress_tracking_enabled && (
-        <Button secondary title="تسجيل الحفظ والمراجعة" onPress={onQuran} />
+        <Button
+          secondary
+          title="تسجيل الحفظ والمراجعة"
+          onPress={onQuran}
+          testID="session-quran"
+        />
       )}
       {blocked > 0 && (
         <Card>
