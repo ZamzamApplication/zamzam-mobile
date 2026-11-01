@@ -18,6 +18,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { API_URL, ApiClient, errorMessage } from './src/api';
 import { DemoClient } from './src/demo';
+import { publicAppLink } from './src/app-links';
+import type { PublicAppLink } from './src/app-links';
+import { PublicStudentRegistration } from './src/screens/PublicStudentRegistration';
 import type { Gateway, User } from './src/types';
 import { canManage } from './src/types';
 import { useEngine } from './src/hooks';
@@ -99,6 +102,7 @@ function Login({
     return (
       <ScrollView contentContainerStyle={s.page}>
         <InvitationFlow
+          key={initialInvite}
           initialLink={initialInvite}
           endpoint={endpoint}
           onBack={() => {
@@ -1128,16 +1132,30 @@ function OfflineWorkspace({
 }
 
 export default function App() {
-  const [inviteLink, setInviteLink] = useState('');
+  const [publicLink, setPublicLink] = useState<PublicAppLink | null>(null);
+  const inviteLink =
+    publicLink?.kind === 'invite' ? `zamzam://invite/${publicLink.token}` : '';
+  const clearLink = () => setPublicLink(null);
   useEffect(() => {
     const accept = (url: string | null | undefined) => {
-      if (url && /^(https:\/\/[^/]+\/invite\/|zamzam:\/\/invite\/)/.test(url))
-        setInviteLink(url);
+      const parsed = publicAppLink(url);
+      if (parsed) setPublicLink(parsed);
     };
-    void Linking.getInitialURL().then(accept);
+    void Linking.getInitialURL()
+      .then(accept)
+      .catch(() => {});
     const listener = Linking.addEventListener('url', e => accept(e.url));
     return () => listener.remove();
   }, []);
+
+  useEffect(() => {
+    if (!publicLink) return;
+    const listener = BackHandler.addEventListener('hardwareBackPress', () => {
+      setPublicLink(null);
+      return true;
+    });
+    return () => listener.remove();
+  }, [publicLink]);
 
   const system = useColorScheme();
   const [isDark, setDark] = useState(system === 'dark');
@@ -1217,6 +1235,12 @@ export default function App() {
             <View style={{ flex: 1, justifyContent: 'center' }}>
               <ActivityIndicator color={theme.cyan} size="large" />
             </View>
+          ) : publicLink?.kind === 'register' ? (
+            <PublicStudentRegistration
+              key={publicLink.token}
+              token={publicLink.token}
+              onBack={clearLink}
+            />
           ) : session?.user.tahfiz?.status === 'pending' ? (
             <PendingApproval
               client={session.client}
@@ -1243,23 +1267,24 @@ export default function App() {
               <Login
                 onReady={ready}
                 initialInvite={inviteLink}
-                onInviteClose={() => setInviteLink('')}
+                onInviteClose={clearLink}
               />
             </View>
           )}
           <Sheet
             visible={!!inviteLink && !!session}
             title="دعوة تحفيظ"
-            onClose={() => setInviteLink('')}
+            onClose={clearLink}
           >
             {session && (
               <InvitationFlow
                 client={session.client}
+                key={inviteLink}
                 initialLink={inviteLink}
-                onBack={() => setInviteLink('')}
+                onBack={clearLink}
                 onJoined={user => {
                   setSession({ ...session, user });
-                  setInviteLink('');
+                  clearLink();
                 }}
               />
             )}

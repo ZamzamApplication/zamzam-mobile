@@ -212,3 +212,23 @@ attendance sync and Qur'an-progress tracking. Its tests cover receipt replay,
 revision conflicts, tenant isolation, and confirmed-session locking. It must be
 included when deploying the API. The API also supplies attendance row revisions
 in rosters and advances student Quran plans after accepted mobile Quran entries.
+
+## Invitation and registration app links
+
+Android handles `zamzam://invite/<token>` and `zamzam://register/<token>` and
+receives the corresponding HTTPS routes on `zamzam-web.fly.dev`. Registration
+opens a public form without signing in or changing the current account. Requests
+use the public API without account credentials. Submission always requires an
+explicit action and is never retried automatically. Opening a new token replaces
+the previous public flow; back returns to the existing session/login screen.
+
+The website offers an Android “Open in app” intent with the same HTTPS page as
+its browser fallback. Automatic HTTPS opening requires the web deployment's
+`ANDROID_APP_LINKS_SHA256_CERT_FINGERPRINTS` to contain the release certificate
+SHA-256 fingerprint. Do not associate the public debug keystore with the domain.
+For Play builds use the Play App Signing certificate, rather than only the upload
+certificate. iOS Universal Links/TestFlight are not configured by this change.
+
+Registration HTTPS filters match the API's current 43-character URL-safe tokens,
+so `/register/<token>/print` stays on the website. If the server changes its token
+length, update the Android filter as well as the link tests.
