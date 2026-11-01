@@ -232,3 +232,15 @@ certificate. iOS Universal Links/TestFlight are not configured by this change.
 Registration HTTPS filters match the API's current 43-character URL-safe tokens,
 so `/register/<token>/print` stays on the website. If the server changes its token
 length, update the Android filter as well as the link tests.
+
+## Weekly halaqat
+
+The sessions screen includes **الجداول الأسبوعية** for administrators and a
+**تكرار أسبوعي** option when adding a single session. Select weekdays, start and
+optional end date, timezone, and an all-student/category/selected-student roster.
+Scheduling needs connectivity; generated sessions use the normal offline
+attendance workflow. Category rosters refresh at session generation. Edit,
+pause/resume and skip controls preserve sessions with recorded activity. Edits
+and pauses affect future creation; already generated sessions stay in place.
+Reopening a completed session takes one tap while retaining synchronization,
+permission, version and audit checks. Android version: 1.5.0 (10).
