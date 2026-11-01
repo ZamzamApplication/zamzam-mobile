@@ -76,8 +76,6 @@ function Login({
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [endpoint, setEndpoint] = useState(API_URL);
-  const [serverStatus, setServerStatus] = useState('');
-  const [checkingServer, setCheckingServer] = useState(false);
   const [advanced, setAdvanced] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -89,18 +87,6 @@ function Login({
       const user = await client.loadUser();
       setPassword('');
       await onReady({ client, user });
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-  const demo = async () => {
-    setBusy(true);
-    setError('');
-    try {
-      const client = await DemoClient.create();
-      await onReady({ client, user: client.user });
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -228,62 +214,6 @@ function Login({
             }}
             testID="login-submit"
           />
-          <Txt
-            muted
-            style={{
-              fontSize: 10,
-              textAlign: 'center',
-              writingDirection: 'ltr',
-            }}
-          >
-            {endpoint}
-          </Txt>
-          <Button
-            small
-            secondary
-            title="فحص الاتصال بالخادم"
-            testID="check-server"
-            busy={checkingServer}
-            onPress={() => {
-              setCheckingServer(true);
-              setServerStatus('');
-              void ApiClient.checkServer(endpoint)
-                .then(() =>
-                  setServerStatus('الاتصال بخادم زمزم وقاعدة البيانات يعمل'),
-                )
-                .catch(() =>
-                  setServerStatus(
-                    'تعذر الاتصال بالخادم. تحقق من الإنترنت وحاول مجدداً.',
-                  ),
-                )
-                .finally(() => setCheckingServer(false));
-            }}
-          />
-          {serverStatus ? (
-            <Txt
-              testID="server-status"
-              muted
-              style={{ fontSize: 11, textAlign: 'center' }}
-            >
-              {serverStatus}
-            </Txt>
-          ) : null}
-          <View style={[s.row, { gap: 10 }]}>
-            <View style={{ height: 1, backgroundColor: t.border, flex: 1 }} />
-            <Txt muted style={{ fontSize: 11 }}>
-              أو
-            </Txt>
-            <View style={{ height: 1, backgroundColor: t.border, flex: 1 }} />
-          </View>
-          <Button
-            secondary
-            title="تجربة التطبيق"
-            disabled={busy}
-            onPress={() => {
-              void demo();
-            }}
-            testID="demo-start"
-          />
           <Button
             secondary
             title="إنشاء حساب وتحفيظ جديد"
@@ -296,9 +226,6 @@ function Login({
             onPress={() => setMode('invite')}
             testID="invite-open"
           />
-          <Txt muted style={{ fontSize: 11, textAlign: 'center' }}>
-            التجربة تستخدم بيانات محلية مستقلة عن حسابك الحقيقي.
-          </Txt>
           {__DEV__ && (
             <>
               <Pressable

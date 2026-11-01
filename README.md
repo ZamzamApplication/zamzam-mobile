@@ -196,7 +196,10 @@ Open the emulator through T3 Code's `device_open` tool and pass its device-bound
 `agent-device` command to the script. UI actions, network settings, screenshots,
 and restarts then appear in the Device panel.
 
-The emulator script requires the labelled demo mode, changes only demo data,
+The public login screen offers sign-in, signup and invitations. Demo entry and
+server diagnostics are not exposed.
+
+The emulator script requires an existing labelled demo session, changes only demo data,
 exercises network loss and cold restarts, and restores the original Wi-Fi/mobile
 settings in `finally`. It captures local evidence under ignored `artifacts/`.
 It checks attendance/notes persistence, cached tenant isolation, settings drafts,
