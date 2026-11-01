@@ -184,7 +184,8 @@ def main():
         assert marker in field.get('text', '')
         step('PASS: cached tahfiz switching offline keeps attendance isolated')
 
-        tap('tab-attendance')
+        tap('tab-sessions')
+        tap('sessions-records')
         text_contains('متابعة حضور الطلاب حسب الشهر والشيخ')
         screenshot('attendance-record')
         tap('tab-settings')

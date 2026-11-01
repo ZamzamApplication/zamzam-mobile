@@ -41,7 +41,10 @@ going offline; creating shared records and publishing drafts require a connectio
 ## Finance, reports, and audit history
 
 The bottom navigation opens the financial workspace for administrators and auditors;
-reports and audit history are available from More.
+reports are inside الحلقات, and audit history is available from المزيد.
+سجل الحضور is also inside الحلقات, with advanced filters and warning delivery
+available in the register. المزيد keeps secondary destinations in a compact list,
+with saved drafts and tenant actions collapsed until needed.
 It follows the website's portrait layout: two-column summary tiles, subscription
 and expense tabs, monthly filters, and Cairo typography. Auditors can view data;
 administrators can record individual or selected bulk payments, review/share
