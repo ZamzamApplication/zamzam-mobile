@@ -42,10 +42,14 @@ export function SessionsScreen({
   engine,
   onOpen,
   onManage,
+  onRecords,
+  onReports,
 }: {
   engine: OfflineEngine;
   onOpen: (id: number) => void;
   onManage?: () => void;
+  onRecords: () => void;
+  onReports: () => void;
 }) {
   const { data, online, syncing } = useEngine(engine);
   const t = useTheme();
@@ -142,6 +146,32 @@ export function SessionsScreen({
               ) : undefined
             }
           />
+          <View style={[s.row, { flexWrap: 'wrap' }]}>
+            <Button
+              small
+              secondary
+              title="سجل الحضور"
+              icon="attendance"
+              onPress={onRecords}
+              testID="sessions-records"
+            />
+            <Button
+              small
+              secondary
+              title="التقارير"
+              onPress={onReports}
+              testID="sessions-reports"
+            />
+            {canManage(data.user) && onManage && (
+              <Button
+                small
+                secondary
+                title="إدارة الحلقات"
+                onPress={onManage}
+                testID="sessions-manage"
+              />
+            )}
+          </View>
           <Select
             label="تصفية حسب الشهر"
             value={month}
@@ -853,9 +883,15 @@ export function AttendanceScreen({
 export function RecordsScreen({
   engine,
   onOpen,
+  onBack,
+  onFilters,
+  onWarnings,
 }: {
   engine: OfflineEngine;
   onOpen: (id: number) => void;
+  onBack: () => void;
+  onFilters: () => void;
+  onWarnings: () => void;
 }) {
   const { data } = useEngine(engine);
   const t = useTheme();
@@ -913,7 +949,34 @@ export function RecordsScreen({
       <Heading
         title="سجل الحضور"
         detail="متابعة حضور الطلاب حسب الشهر والشيخ"
+        action={
+          <Button
+            small
+            secondary
+            title="الحلقات"
+            icon="back"
+            onPress={onBack}
+          />
+        }
       />
+      <View style={[s.row, { flexWrap: 'wrap' }]}>
+        <Button
+          small
+          secondary
+          title="تصفية متقدمة"
+          onPress={onFilters}
+          testID="records-filters"
+        />
+        {canManage(data.user) && (
+          <Button
+            small
+            secondary
+            title="الإنذارات"
+            onPress={onWarnings}
+            testID="records-warnings"
+          />
+        )}
+      </View>
       <Card>
         <Field
           placeholder="بحث عن طالب..."

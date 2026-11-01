@@ -565,7 +565,21 @@ function Workspace({
         return true;
       }
       if (moreRoute) {
+        if (
+          moreRoute.page === 'attendance-filters' ||
+          moreRoute.page === 'warnings'
+        )
+          setPage('attendance');
+        else if (
+          moreRoute.page === 'session-management' ||
+          moreRoute.page === 'reports'
+        )
+          setPage('sessions');
         setMoreRoute(null);
+        return true;
+      }
+      if (page === 'attendance') {
+        setPage('sessions');
         return true;
       }
       if (page !== 'home') {
@@ -635,10 +649,21 @@ function Workspace({
   const allPending = [...data.queue, ...(data.quranQueue || [])];
   const issues = allPending.filter(p => p.issue).length;
   const open = (id: number) => setSessionId(id);
+  const activePage =
+    page === 'attendance' ||
+    (page === 'more' &&
+      moreRoute &&
+      [
+        'attendance-filters',
+        'warnings',
+        'session-management',
+        'reports',
+      ].includes(moreRoute.page))
+      ? 'sessions'
+      : page;
   const nav: { key: typeof page; label: string; icon: IconName }[] = [
     { key: 'home', label: 'الرئيسية', icon: 'home' },
     { key: 'sessions', label: 'الحلقات', icon: 'sessions' },
-    { key: 'attendance', label: 'سجل الحضور', icon: 'attendance' },
     ...(['admin', 'super_admin', 'auditor'].includes(data.user.role)
       ? [
           {
@@ -842,6 +867,11 @@ function Workspace({
           <SessionsScreen
             engine={engine}
             onOpen={open}
+            onRecords={() => setPage('attendance')}
+            onReports={() => {
+              setMoreRoute({ page: 'reports' });
+              setPage('more');
+            }}
             onManage={() => {
               setMoreRoute({ page: 'session-management' });
               setPage('more');
@@ -858,6 +888,8 @@ function Workspace({
               } else setMoreRoute(route);
             }}
             onHome={() => setPage('home')}
+            onRecords={() => setPage('attendance')}
+            onSessions={() => setPage('sessions')}
             onSettings={() => setPage('settings')}
             onJoined={onTenant}
             onSession={id => {
@@ -866,7 +898,19 @@ function Workspace({
             }}
           />
         ) : page === 'attendance' ? (
-          <RecordsScreen engine={engine} onOpen={open} />
+          <RecordsScreen
+            engine={engine}
+            onOpen={open}
+            onBack={() => setPage('sessions')}
+            onFilters={() => {
+              setMoreRoute({ page: 'attendance-filters' });
+              setPage('more');
+            }}
+            onWarnings={() => {
+              setMoreRoute({ page: 'warnings' });
+              setPage('more');
+            }}
+          />
         ) : (
           <SettingsScreen engine={engine} />
         )}
@@ -892,7 +936,9 @@ function Workspace({
               key={item.key}
               testID={`tab-${item.key}`}
               accessibilityRole="tab"
-              accessibilityState={{ selected: item.key === page }}
+              accessibilityState={{
+                selected: item.key === activePage,
+              }}
               onPress={() => {
                 setSessionId(null);
                 setMoreRoute(null);
@@ -905,12 +951,12 @@ function Workspace({
                 justifyContent: 'center',
                 gap: 2,
                 borderRadius: 12,
-                backgroundColor: page === item.key ? t.active : t.card,
+                backgroundColor: activePage === item.key ? t.active : t.card,
               }}
             >
               <Icon
                 name={item.icon}
-                color={item.key === page ? t.cyan : t.muted}
+                color={item.key === activePage ? t.cyan : t.muted}
                 size={22}
               />
               <Txt
@@ -918,7 +964,7 @@ function Workspace({
                 style={{
                   textAlign: 'center',
                   fontSize: 11,
-                  color: item.key === page ? t.cyan : t.muted,
+                  color: item.key === activePage ? t.cyan : t.muted,
                 }}
               >
                 {item.label}
