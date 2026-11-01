@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { WeeklySchedules, WeeklyScheduleForm } from './SessionSchedules';
 import {
   Alert,
   FlatList,
@@ -56,6 +57,7 @@ export function SessionsScreen({
   const [filter, setFilter] = useState('upcoming');
   const [month, setMonth] = useState('');
   const [create, setCreate] = useState(false);
+  const [weekly, setWeekly] = useState(false);
   const [date, setDate] = useState(localDate());
   const [name, setName] = useState('');
   const [error, setError] = useState('');
@@ -146,6 +148,7 @@ export function SessionsScreen({
               ) : undefined
             }
           />
+          {canManage(data.user) && <WeeklySchedules engine={engine} />}
           <View style={[s.row, { flexWrap: 'wrap' }]}>
             <Button
               small
@@ -246,36 +249,57 @@ export function SessionsScreen({
               if (!busy) setCreate(false);
             }}
           >
-            <Field
-              label="تاريخ الحلقة"
-              value={date}
-              onChangeText={setDate}
-              placeholder="YYYY-MM-DD"
-              keyboardType="numbers-and-punctuation"
-              testID="session-date"
-            />
-            {data.settings.multiple_sessions_per_day_enabled && (
-              <Select
-                label="اسم الحلقة"
-                value={name}
-                options={[
-                  { value: '', label: 'بدون اسم' },
-                  ...(data.settings.session_name_options || []).map(n => ({
-                    value: n,
-                    label: n,
-                  })),
-                ]}
-                onChange={setName}
+            <View style={s.row}>
+              <Button
+                title="مرة واحدة"
+                secondary={weekly}
+                onPress={() => setWeekly(false)}
               />
+              <Button
+                title="تكرار أسبوعي"
+                secondary={!weekly}
+                onPress={() => setWeekly(true)}
+              />
+            </View>
+            {weekly ? (
+              <WeeklyScheduleForm
+                engine={engine}
+                onSaved={() => setCreate(false)}
+              />
+            ) : (
+              <>
+                <Field
+                  label="تاريخ الحلقة"
+                  value={date}
+                  onChangeText={setDate}
+                  placeholder="YYYY-MM-DD"
+                  keyboardType="numbers-and-punctuation"
+                  testID="session-date"
+                />
+                {data.settings.multiple_sessions_per_day_enabled && (
+                  <Select
+                    label="اسم الحلقة"
+                    value={name}
+                    options={[
+                      { value: '', label: 'بدون اسم' },
+                      ...(data.settings.session_name_options || []).map(n => ({
+                        value: n,
+                        label: n,
+                      })),
+                    ]}
+                    onChange={setName}
+                  />
+                )}
+                {error ? <Notice message={error} error /> : null}
+                <Button
+                  title="إنشاء الحلقة"
+                  onPress={() => {
+                    void add();
+                  }}
+                  busy={busy}
+                />
+              </>
             )}
-            {error ? <Notice message={error} error /> : null}
-            <Button
-              title="إنشاء الحلقة"
-              onPress={() => {
-                void add();
-              }}
-              busy={busy}
-            />
           </Sheet>
         </View>
       }
@@ -551,14 +575,15 @@ export function AttendanceScreen({
   const [collapsed, setCollapsed] = useState<number[]>([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [reopen, setReopen] = useState(false);
-  const [reason, setReason] = useState('');
   const perform = async (action: 'confirm' | 'reopen') => {
     setBusy(true);
     setError('');
     try {
-      await engine.transition(id, action, reason);
-      setReopen(false);
+      await engine.transition(
+        id,
+        action,
+        action === 'reopen' ? 'إعادة فتح الحلقة للتعديل' : undefined,
+      );
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -678,7 +703,7 @@ export function AttendanceScreen({
             style={{ flex: 1 }}
             onPress={() =>
               roster.is_confirmed
-                ? setReopen(true)
+                ? void perform('reopen')
                 : Alert.alert(
                     'تأكيد الحلقة',
                     'سيُقفل الحضور بعد التأكيد. هل تريد المتابعة؟',
@@ -855,32 +880,6 @@ export function AttendanceScreen({
           }
         />
       )}
-      <Sheet
-        visible={reopen}
-        title="إعادة فتح الحلقة"
-        onClose={() => {
-          if (!busy) setReopen(false);
-        }}
-      >
-        <Txt muted>
-          سيتم السماح بتعديل الحضور، وسيُحفظ السبب في سجل التدقيق.
-        </Txt>
-        <Field
-          label="سبب إعادة الفتح"
-          value={reason}
-          onChangeText={setReason}
-          multiline
-        />
-        {error && <Notice message={error} error />}
-        <Button
-          title="إعادة فتح الحلقة"
-          disabled={!reason.trim()}
-          busy={busy}
-          onPress={() => {
-            void perform('reopen');
-          }}
-        />
-      </Sheet>
     </ScrollView>
   );
 }
