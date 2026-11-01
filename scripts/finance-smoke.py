@@ -10,7 +10,11 @@ def fill(key,value):
     device('fill','@'+node['ref'],value,'--settle')
     device('keyboard','dismiss')
 def more(key):
-    tap('tab-more');tap(key,scroll=True)
+    if key == 'more-finance': tap('tab-finance')
+    elif key == 'more-reports':
+        tap('tab-sessions');tap('sessions-reports')
+    else:
+        tap('tab-more');tap(key,scroll=True)
 def restart():
     device('open','com.zamzammobile','--relaunch');find('tab-more',timeout=35)
 def step(value):print(value,flush=True)
