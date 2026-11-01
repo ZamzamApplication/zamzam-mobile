@@ -124,11 +124,9 @@ def main():
     marker = 'offline-' + str(int(time.time()))
     try:
         current = nodes()
-        if any(match(n, 'demo-start') for n in current):
-            tap('demo-start', scroll=True)
-        elif any(match(n, 'login-submit') for n in current):
-            tap('demo-start', scroll=True)
-        text_contains('وضع تجريبي', timeout=30)
+        if any(match(n, 'login-submit') for n in current):
+            raise AssertionError('This smoke flow requires an existing isolated demo session; the public demo login entry was removed.')
+        text_contains('وضع تجريبي')
         step('PASS: app is in explicitly isolated demo mode')
         tap('tab-home')
         text_contains('لوحة المتابعة')

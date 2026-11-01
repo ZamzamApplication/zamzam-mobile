@@ -27,7 +27,7 @@ def step(value):
 device('open', 'com.zamzammobile')
 current = nodes()
 if any(helpers['match'](n, 'login-submit') for n in current):
-    tap('demo-start', scroll=True)
+    raise AssertionError('This smoke flow requires an existing isolated demo session; the public demo login entry was removed.')
 text_contains('وضع تجريبي', timeout=30)
 wifi = adb('shell','settings','get','global','wifi_on').strip()
 mobile = adb('shell','settings','get','global','mobile_data').strip()
