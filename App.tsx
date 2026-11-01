@@ -74,7 +74,7 @@ function Login({
   const t = useTheme();
   const [mode, setMode] = useState(initialInvite ? 'invite' : 'login');
   useEffect(() => {
-    if (initialInvite) setMode('invite');
+    setMode(initialInvite ? 'invite' : 'login');
   }, [initialInvite]);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -1137,15 +1137,25 @@ export default function App() {
     publicLink?.kind === 'invite' ? `zamzam://invite/${publicLink.token}` : '';
   const clearLink = () => setPublicLink(null);
   useEffect(() => {
+    let active = true;
+    let receivedLiveLink = false;
     const accept = (url: string | null | undefined) => {
       const parsed = publicAppLink(url);
-      if (parsed) setPublicLink(parsed);
+      if (active && parsed) setPublicLink(parsed);
+      return !!parsed;
     };
+    const listener = Linking.addEventListener('url', event => {
+      if (accept(event.url)) receivedLiveLink = true;
+    });
     void Linking.getInitialURL()
-      .then(accept)
+      .then(url => {
+        if (!receivedLiveLink) accept(url);
+      })
       .catch(() => {});
-    const listener = Linking.addEventListener('url', e => accept(e.url));
-    return () => listener.remove();
+    return () => {
+      active = false;
+      listener.remove();
+    };
   }, []);
 
   useEffect(() => {
