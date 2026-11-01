@@ -19,6 +19,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { API_URL, ApiClient, errorMessage } from './src/api';
 import { DemoClient } from './src/demo';
 import type { Gateway, User } from './src/types';
+import { canManage } from './src/types';
 import { useEngine } from './src/hooks';
 import { OfflineEngine } from './src/offline/engine';
 import { readWorkspace } from './src/offline/database';
@@ -36,9 +37,9 @@ import {
   PendingApproval,
 } from './src/screens/Registration';
 import { FinanceScreen } from './src/screens/Finance';
-import { MoreScreen } from './src/screens/More';
+import { SecondaryScreens } from './src/screens/SecondaryScreens';
 import { RegistrationNotification } from './src/screens/StudentRegistration';
-import type { MoreRoute } from './src/screens/More';
+import type { SecondaryRoute } from './src/screens/SecondaryScreens';
 import {
   Button,
   Card,
@@ -529,10 +530,16 @@ function Workspace({
   const { data, online, syncing, error } = useEngine(engine);
   const t = useTheme();
   const [page, setPage] = useState<
-    'home' | 'sessions' | 'attendance' | 'finance' | 'settings' | 'more'
+    | 'home'
+    | 'sessions'
+    | 'attendance'
+    | 'finance'
+    | 'administration'
+    | 'settings'
+    | 'secondary'
   >(data.user.role === 'auditor' ? 'finance' : 'home');
   const [sessionId, setSessionId] = useState<number | null>(null);
-  const [moreRoute, setMoreRoute] = useState<MoreRoute>(null);
+  const [secondaryRoute, setSecondaryRoute] = useState<SecondaryRoute>(null);
   const [picker, setPicker] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
@@ -564,18 +571,36 @@ function Workspace({
         setSessionId(null);
         return true;
       }
-      if (moreRoute) {
+      if (page === 'secondary' && secondaryRoute) {
+        const route = secondaryRoute;
+        if (route.page === 'profile') {
+          setSecondaryRoute({ page: 'people' });
+          return true;
+        }
         if (
-          moreRoute.page === 'attendance-filters' ||
-          moreRoute.page === 'warnings'
-        )
+          route.page === 'student-plans' ||
+          route.page === 'student-progress'
+        ) {
+          setSecondaryRoute({ page: 'profile', id: route.id });
+          return true;
+        }
+        if (route.page === 'attendance-filters' || route.page === 'warnings')
           setPage('attendance');
         else if (
-          moreRoute.page === 'session-management' ||
-          moreRoute.page === 'reports'
+          route.page === 'session-management' ||
+          route.page === 'reports' ||
+          route.page === 'quran'
         )
           setPage('sessions');
-        setMoreRoute(null);
+        else if (
+          ['people', 'audit', 'invitations', 'registration'].includes(
+            route.page,
+          ) &&
+          canManage(data.user)
+        )
+          setPage('administration');
+        else setPage('home');
+        setSecondaryRoute(null);
         return true;
       }
       if (page === 'attendance') {
@@ -589,7 +614,7 @@ function Workspace({
       return false;
     });
     return () => listener.remove();
-  }, [sessionId, page, moreRoute]);
+  }, [sessionId, page, secondaryRoute, data.user]);
   const chooseTenant = async (id: number) => {
     if (id === engine.tenant || switching) {
       setPicker(false);
@@ -651,16 +676,49 @@ function Workspace({
   const open = (id: number) => setSessionId(id);
   const activePage =
     page === 'attendance' ||
-    (page === 'more' &&
-      moreRoute &&
+    (page === 'secondary' &&
+      secondaryRoute &&
       [
         'attendance-filters',
         'warnings',
         'session-management',
         'reports',
-      ].includes(moreRoute.page))
+        'quran',
+      ].includes(secondaryRoute.page))
       ? 'sessions'
+      : page === 'secondary' &&
+        secondaryRoute &&
+        [
+          'people',
+          'profile',
+          'student-plans',
+          'student-progress',
+          'audit',
+          'invitations',
+          'registration',
+        ].includes(secondaryRoute.page) &&
+        canManage(data.user)
+      ? 'administration'
+      : page === 'secondary'
+      ? 'home'
       : page;
+  const navigate = (route: SecondaryRoute) => {
+    setSessionId(null);
+    setSecondaryRoute(
+      route?.page === 'administration' || route?.page === 'finance'
+        ? null
+        : route,
+    );
+    setPage(
+      route?.page === 'administration'
+        ? 'administration'
+        : route?.page === 'finance'
+        ? 'finance'
+        : route
+        ? 'secondary'
+        : 'home',
+    );
+  };
   const nav: { key: typeof page; label: string; icon: IconName }[] = [
     { key: 'home', label: 'الرئيسية', icon: 'home' },
     { key: 'sessions', label: 'الحلقات', icon: 'sessions' },
@@ -673,8 +731,20 @@ function Workspace({
           },
         ]
       : []),
-    { key: 'settings', label: 'الإعدادات', icon: 'settings' },
-    { key: 'more', label: 'المزيد', icon: 'more' },
+    ...(canManage(data.user)
+      ? [
+          {
+            key: 'administration' as const,
+            label: 'الإدارة',
+            icon: 'manage' as const,
+          },
+          {
+            key: 'settings' as const,
+            label: 'الإعدادات',
+            icon: 'settings' as const,
+          },
+        ]
+      : []),
   ];
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, direction: 'ltr' }}>
@@ -819,8 +889,8 @@ function Workspace({
         engine={engine}
         onOpen={() => {
           setSessionId(null);
-          setPage('more');
-          setMoreRoute({ page: 'registration' });
+          setPage('secondary');
+          setSecondaryRoute({ page: 'registration' });
         }}
       />
       <View style={{ flex: 1 }}>
@@ -832,13 +902,13 @@ function Workspace({
             onBack={() => setSessionId(null)}
             onProfile={id => {
               setSessionId(null);
-              setMoreRoute({ page: 'profile', id });
-              setPage('more');
+              setSecondaryRoute({ page: 'profile', id });
+              setPage('secondary');
             }}
             onQuran={() => {
-              setMoreRoute({ page: 'quran', id: sessionId });
+              setSecondaryRoute({ page: 'quran', id: sessionId });
               setSessionId(null);
-              setPage('more');
+              setPage('secondary');
             }}
             onReview={() => setSyncOpen(true)}
           />
@@ -847,7 +917,7 @@ function Workspace({
           <FinanceScreen
             engine={engine}
             onBack={() =>
-              setPage(data.user.role === 'auditor' ? 'finance' : 'more')
+              setPage(data.user.role === 'auditor' ? 'finance' : 'home')
             }
           />
         ) : page === 'home' ? (
@@ -856,12 +926,12 @@ function Workspace({
             onOpen={open}
             onSessions={() => setPage('sessions')}
             onRecords={() => setPage('attendance')}
-            onSettings={() => setPage('settings')}
+            onPlans={() => navigate({ page: 'plans' })}
+            onAdministration={() => navigate({ page: 'administration' })}
+            onFinance={() => navigate({ page: 'finance' })}
+            onPeople={() => navigate({ page: 'people' })}
             onSync={() => setSyncOpen(true)}
-            onMore={() => {
-              setPage('more');
-              setMoreRoute(null);
-            }}
+            onDrafts={() => navigate({ page: 'drafts' })}
           />
         ) : page === 'sessions' ? (
           <SessionsScreen
@@ -869,24 +939,23 @@ function Workspace({
             onOpen={open}
             onRecords={() => setPage('attendance')}
             onReports={() => {
-              setMoreRoute({ page: 'reports' });
-              setPage('more');
+              setSecondaryRoute({ page: 'reports' });
+              setPage('secondary');
             }}
             onManage={() => {
-              setMoreRoute({ page: 'session-management' });
-              setPage('more');
+              setSecondaryRoute({ page: 'session-management' });
+              setPage('secondary');
             }}
           />
-        ) : page === 'more' ? (
-          <MoreScreen
+        ) : page === 'secondary' || page === 'administration' ? (
+          <SecondaryScreens
             engine={engine}
-            route={moreRoute}
-            navigate={route => {
-              if (route?.page === 'finance') {
-                setPage('finance');
-                setMoreRoute(null);
-              } else setMoreRoute(route);
-            }}
+            route={
+              page === 'administration'
+                ? { page: 'administration' }
+                : secondaryRoute
+            }
+            navigate={navigate}
             onHome={() => setPage('home')}
             onRecords={() => setPage('attendance')}
             onSessions={() => setPage('sessions')}
@@ -903,12 +972,12 @@ function Workspace({
             onOpen={open}
             onBack={() => setPage('sessions')}
             onFilters={() => {
-              setMoreRoute({ page: 'attendance-filters' });
-              setPage('more');
+              setSecondaryRoute({ page: 'attendance-filters' });
+              setPage('secondary');
             }}
             onWarnings={() => {
-              setMoreRoute({ page: 'warnings' });
-              setPage('more');
+              setSecondaryRoute({ page: 'warnings' });
+              setPage('secondary');
             }}
           />
         ) : (
@@ -941,7 +1010,7 @@ function Workspace({
               }}
               onPress={() => {
                 setSessionId(null);
-                setMoreRoute(null);
+                setSecondaryRoute(null);
                 setPage(item.key);
               }}
               style={{
@@ -1044,6 +1113,24 @@ function Workspace({
             {switching && <ActivityIndicator size="small" color={t.cyan} />}
           </Pressable>
         ))}
+        <Button
+          secondary
+          title="الانضمام بدعوة"
+          testID="workspace-join"
+          onPress={() => {
+            setPicker(false);
+            navigate({ page: 'join' });
+          }}
+        />
+        <Button
+          secondary
+          title="إنشاء تحفيظ جديد"
+          testID="workspace-create"
+          onPress={() => {
+            setPicker(false);
+            navigate({ page: 'create-tahfiz' });
+          }}
+        />
       </Sheet>
       <SyncPanel
         engine={engine}

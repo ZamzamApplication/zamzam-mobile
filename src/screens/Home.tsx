@@ -11,17 +11,23 @@ export function HomeScreen({
   onOpen,
   onSessions,
   onRecords,
-  onSettings,
   onSync,
-  onMore,
+  onDrafts,
+  onPlans,
+  onAdministration,
+  onFinance,
+  onPeople,
 }: {
   engine: OfflineEngine;
   onOpen: (id: number) => void;
   onSessions: () => void;
   onRecords: () => void;
-  onSettings: () => void;
   onSync: () => void;
-  onMore?: () => void;
+  onDrafts: () => void;
+  onPlans: () => void;
+  onAdministration: () => void;
+  onFinance: () => void;
+  onPeople: () => void;
 }) {
   const { data, online, syncing, dashboardError } = useEngine(engine);
   const t = useTheme();
@@ -40,12 +46,14 @@ export function HomeScreen({
   const metrics = [
     {
       title: 'الطلاب',
+      action: canManage(data.user) ? onAdministration : onPeople,
       value: summary?.students,
       detail: 'طالب نشط في التحفيظ',
       color: '#06b6d4',
     },
     {
       title: 'الشيوخ',
+      action: canManage(data.user) ? onAdministration : onPeople,
       value: summary?.sheikhs,
       detail: 'شيخ مسؤول عن المتابعة',
       color: '#10b981',
@@ -163,7 +171,7 @@ export function HomeScreen({
           <Button
             secondary
             title={`${attention.drafts} مسودة غير منشورة`}
-            onPress={onMore || onSettings}
+            onPress={onDrafts}
             testID="home-settings-drafts"
           />
         )}
@@ -213,8 +221,7 @@ export function HomeScreen({
         {metrics.map(item => (
           <View key={item.title} style={{ width: '48%', flexGrow: 1 }}>
             <Pressable
-              accessibilityRole={item.action ? 'button' : undefined}
-              disabled={!item.action}
+              accessibilityRole="button"
               onPress={item.action}
               style={{ flex: 1 }}
             >
@@ -249,25 +256,33 @@ export function HomeScreen({
         <Heading title="المهام السريعة" />
         <Button
           secondary
-          icon="sessions"
-          title={
-            canManage(data.user) ? 'إدارة الحلقات وإضافة حلقة' : 'عرض الحلقات'
-          }
-          onPress={onSessions}
-          testID="home-sessions"
+          title="إنشاء خطة"
+          onPress={onPlans}
+          testID="home-plans"
         />
-        <Button
-          secondary
-          icon="attendance"
-          title="سجل الحضور"
-          onPress={onRecords}
-        />
-        <Button
-          secondary
-          icon="settings"
-          title="الإعدادات"
-          onPress={onSettings}
-        />
+        {canManage(data.user) ? (
+          <>
+            <Button
+              secondary
+              title="إدارة الطلاب"
+              onPress={onAdministration}
+              testID="home-administration"
+            />
+            <Button
+              secondary
+              icon="finance"
+              title="القسم المالي"
+              onPress={onFinance}
+            />
+          </>
+        ) : (
+          <Button
+            secondary
+            title="الطلاب"
+            onPress={onPeople}
+            testID="home-people"
+          />
+        )}
       </Card>
       <Card style={{ gap: 12 }}>
         <Heading
