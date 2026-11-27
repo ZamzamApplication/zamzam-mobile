@@ -24,6 +24,8 @@ jest.mock('../src/ui', () => {
   };
 });
 import { WeeklyScheduleForm } from '../src/screens/SessionSchedules';
+import { deviceTimezone } from '../src/session-schedules';
+import { localDate } from '../src/types';
 let screen: ReactTestRenderer;
 let request: jest.Mock;
 let sync: jest.Mock;
@@ -51,16 +53,15 @@ async function open() {
     );
   });
 }
-test('saves selected weekdays and dates, then refreshes the workspace', async () => {
+test('saves selected weekdays with automatic start date and timezone, then refreshes', async () => {
   await open();
-  expect(element('button', 'حفظ الجدول الأسبوعي').props.disabled).toBe(true);
+  expect(element('button', 'حفظ').props.disabled).toBe(true);
   await act(async () => {
     element('button', 'الأحد').props.onPress();
     element('button', 'الثلاثاء').props.onPress();
-    element('field', 'بدءاً من').props.onChangeText('2026-11-01');
   });
   await act(async () => {
-    await element('button', 'حفظ الجدول الأسبوعي').props.onPress();
+    await element('button', 'حفظ').props.onPress();
   });
   expect(request).toHaveBeenCalledWith(
     '/session-schedules',
@@ -68,8 +69,9 @@ test('saves selected weekdays and dates, then refreshes the workspace', async ()
   );
   expect(JSON.parse(request.mock.calls[0][1].body)).toMatchObject({
     weekdays: [0, 2],
-    start_date: '2026-11-01',
-    timezone: 'Africa/Cairo',
+    start_date: localDate(),
+    end_date: null,
+    timezone: deviceTimezone(),
     membership_mode: 'all',
     member_ids: [],
   });
@@ -80,7 +82,7 @@ test('loads categories and sends category IDs rather than a frozen student list'
   request.mockResolvedValue([{ id: 7, name: 'Group' }]);
   await open();
   await act(async () => {
-    element('select', 'طلاب الحلقة').props.onChange('categories');
+    element('select', 'الطلاب').props.onChange('categories');
   });
   expect(request).toHaveBeenCalledWith('/student-categories');
   await act(async () => {
@@ -88,7 +90,7 @@ test('loads categories and sends category IDs rather than a frozen student list'
     element('button', 'الأحد').props.onPress();
   });
   await act(async () => {
-    await element('button', 'حفظ الجدول الأسبوعي').props.onPress();
+    await element('button', 'حفظ').props.onPress();
   });
   expect(JSON.parse(request.mock.calls[1][1].body)).toMatchObject({
     membership_mode: 'categories',
@@ -102,7 +104,7 @@ test('keeps the form open on a failed save and disables saving offline', async (
   });
   request.mockRejectedValueOnce(new Error('Unable to save'));
   await act(async () => {
-    await element('button', 'حفظ الجدول الأسبوعي').props.onPress();
+    await element('button', 'حفظ').props.onPress();
   });
   expect(saved).not.toHaveBeenCalled();
   expect(sync).not.toHaveBeenCalled();
@@ -120,5 +122,5 @@ test('keeps the form open on a failed save and disables saving offline', async (
       />,
     );
   });
-  expect(element('button', 'حفظ الجدول الأسبوعي').props.disabled).toBe(true);
+  expect(element('button', 'حفظ').props.disabled).toBe(true);
 });
