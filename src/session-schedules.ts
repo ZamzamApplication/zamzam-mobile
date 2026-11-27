@@ -26,3 +26,18 @@ export function schedulePayload(schedule: SessionSchedule) {
   const { id, version, upcoming, ...input } = schedule;
   return { ...input, expected_version: version };
 }
+
+export function deviceTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Cairo';
+  } catch {
+    return 'Africa/Cairo';
+  }
+}
+
+export function weekdaysLabel(weekdays: number[]): string {
+  return [...weekdays]
+    .sort((a, b) => a - b)
+    .map(day => WEEKDAYS[day])
+    .join('، ');
+}
